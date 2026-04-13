@@ -303,7 +303,8 @@ export const spotsByCity: Record<string, TouristSpot[]> = {
       imageEmoji: "🥾",
       avgCostPerPerson: 15,
       category: "trilha",
-      imageUrl: "https://www.olinda.pe.gov.br/wp-content/uploads/2025/11/ambiental_olinda1-1024x771.jpeg",
+      imageUrl:
+        "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/2e/df/b4/c1/um-pouco-da-maior-riqueza.jpg?w=1200&h=900&s=1",
     },
   ],
   noronha: [
