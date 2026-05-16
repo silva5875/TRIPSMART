@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ArrowLeft, Plane, Calendar, Users, MapPin, Trash2, DollarSign, Bus, Hotel, Utensils, Star, Navigation, ChevronRight, MessageSquare, FileDown } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
+import Seo from '@/components/Seo';
 import StarRating from '@/components/StarRating';
 import { budgetRanges, transportOptions, localTransportOptions, monthNames } from '@/data/mockData';
 import type { TouristSpot } from '@/types/travel';
@@ -145,6 +146,7 @@ const TravelHistory = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Seo title="Histórico de viagens — TRIPSMART" description="Acesse seus roteiros salvos e baixe em PDF." path="/#/historico" />
       <nav className="sticky top-0 z-50 bg-pe-navy border-b border-pe-blue/20">
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-14 md:h-16 flex items-center justify-between">
           <button onClick={() => navigate('/')} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
