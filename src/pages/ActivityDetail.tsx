@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Star, MapPin, Calendar, DollarSign, Compass, Navigation } from 'lucide-react';
 import { pernambucoCities, spotsByCity, categoryLabels, monthNames } from '@/data/mockData';
+import Seo from '@/components/Seo';
 
 const ActivityDetail = () => {
   const { cityId, spotId } = useParams();
@@ -29,6 +30,34 @@ const ActivityDetail = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Seo
+        title={`${spot.name}, ${city.name} — TRIPSMART`}
+        description={spot.description?.slice(0, 155) || `${spot.name} em ${city.name}, Pernambuco. Avaliação ${spot.rating}/5.`}
+        path={`/#/atividade/${cityId}/${spotId}`}
+        image={spot.imageUrl}
+        type="article"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "TouristAttraction",
+          name: spot.name,
+          description: spot.description,
+          image: spot.imageUrl,
+          address: {
+            "@type": "PostalAddress",
+            addressLocality: city.name,
+            addressRegion: "PE",
+            addressCountry: "BR",
+          },
+          geo: {
+            "@type": "GeoCoordinates",
+            latitude: spot.lat,
+            longitude: spot.lng,
+          },
+          aggregateRating: spot.rating
+            ? { "@type": "AggregateRating", ratingValue: spot.rating, bestRating: 5, ratingCount: 1 }
+            : undefined,
+        }}
+      />
       {/* Nav */}
       <nav className="sticky top-0 z-50 bg-background/90 backdrop-blur-md border-b border-border">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">

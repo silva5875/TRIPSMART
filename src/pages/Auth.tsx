@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
 import { Navigation, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import Seo from '@/components/Seo';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -57,6 +58,11 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen flex">
+      <Seo
+        title={isLogin ? 'Entrar — TRIPSMART' : 'Criar conta — TRIPSMART'}
+        description={isLogin ? 'Acesse sua conta TRIPSMART para planejar roteiros em Pernambuco.' : 'Crie sua conta TRIPSMART e comece a planejar viagens por Pernambuco com IA.'}
+        path="/#/auth"
+      />
       {/* Left side — Blue panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-pe-blue relative flex-col justify-between p-12">
         <button onClick={() => navigate('/')} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
