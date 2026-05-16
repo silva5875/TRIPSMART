@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import ThemeToggle from '@/components/ThemeToggle';
+import Seo from '@/components/Seo';
 
 const Profile = () => {
   const { user, signOut } = useAuth();
@@ -77,6 +78,7 @@ const Profile = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Seo title="Meu perfil — TRIPSMART" description="Gerencie sua conta e veja suas estatísticas de viagens em Pernambuco." path="/#/perfil" />
       {/* Nav */}
       <nav className="sticky top-0 z-50 bg-pe-navy border-b border-pe-blue/20">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">

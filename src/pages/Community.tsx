@@ -8,6 +8,7 @@ import { ArrowLeft, Heart, MessageCircle, Bookmark, Star, MapPin, Users, Calenda
 import { useToast } from '@/hooks/use-toast';
 import { monthNames } from '@/data/mockData';
 import ThemeToggle from '@/components/ThemeToggle';
+import Seo from '@/components/Seo';
 
 const Community = () => {
   const { user } = useAuth();
@@ -119,6 +120,12 @@ const Community = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Seo
+        title="Comunidade — Roteiros compartilhados em Pernambuco | TRIPSMART"
+        description="Descubra roteiros reais compartilhados pela comunidade TRIPSMART em Recife, Olinda, Noronha e mais."
+        path="/#/comunidade"
+        jsonLd={{ "@context": "https://schema.org", "@type": "CollectionPage", name: "Roteiros da comunidade TRIPSMART" }}
+      />
       {/* Nav */}
       <nav className="sticky top-0 z-50 bg-pe-navy border-b border-pe-blue/20">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">

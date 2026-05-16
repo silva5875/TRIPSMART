@@ -16,6 +16,7 @@ import { pernambucoCities } from "@/data/mockData";
 import { supabase } from "@/integrations/supabase/client";
 import type { RichItinerary } from "@/types/richItinerary";
 import { toast } from "sonner";
+import Seo from "@/components/Seo";
 
 const months = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -110,6 +111,7 @@ const RouteGenerator = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Seo title="Gerador de roteiro editorial — TRIPSMART" description="Roteiros narrativos, completos e ilustrados para sua viagem em Pernambuco." path="/#/gerador" />
       {/* Nav */}
       <nav className="sticky top-0 z-50 bg-pe-navy border-b border-pe-blue/20">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">

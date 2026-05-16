@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { pernambucoCities, spotsByCity, categoryLabels, pernambucoImages } from "@/data/mockData";
 import heroPernambuco from "@/assets/hero-pernambuco.jpg";
+import Seo from "@/components/Seo";
 
 const featuredDestinations = [
   { name: "Recife", cityId: "recife", emoji: "🏙️", imageUrl: pernambucoImages.recife, tag: "Capital", color: "bg-pe-blue", desc: "Marco Zero, Brennand e praias urbanas" },
@@ -104,6 +105,26 @@ const Landing = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Seo
+        title="TRIPSMART — Roteiros inteligentes em Pernambuco com IA"
+        description="Planeje viagens por Recife, Olinda, Noronha, Porto de Galinhas e Caruaru com roteiros personalizados gerados por IA."
+        path="/"
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: "TRIPSMART",
+            url: "https://tripsmart.lovable.app/",
+            description: "Roteiros inteligentes em Pernambuco com IA.",
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: "TRIPSMART",
+            url: "https://tripsmart.lovable.app/",
+          },
+        ]}
+      />
       {/* Nav — Navy bar */}
       <nav className="sticky top-0 z-50 bg-pe-navy border-b border-pe-blue/20">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
