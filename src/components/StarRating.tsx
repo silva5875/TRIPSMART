@@ -24,10 +24,12 @@ const StarRating = ({ value, onChange, readOnly = false, size = 18, showValue = 
             onClick={() => onChange?.(star)}
             onMouseEnter={() => !readOnly && setHover(star)}
             onMouseLeave={() => !readOnly && setHover(0)}
+            aria-label={`${star} ${star === 1 ? "estrela" : "estrelas"}`}
             className={`transition-colors ${readOnly ? "cursor-default" : "cursor-pointer hover:scale-110"}`}
           >
             <Star
               size={size}
+              aria-hidden="true"
               className={filled ? "text-primary fill-primary" : "text-muted-foreground/40"}
             />
           </button>

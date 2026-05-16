@@ -102,9 +102,9 @@ const Auth = () => {
                 <Navigation size={24} className="text-white" />
               </div>
             </button>
-            <h1 className="text-2xl font-black tracking-tight text-foreground">
+            <div className="text-2xl font-black tracking-tight text-foreground" aria-label="TripSmart">
               <span className="text-primary">TRIP</span><span className="text-pe-gold">SMART</span>
-            </h1>
+            </div>
           </div>
 
           <div className="mb-8">
@@ -123,22 +123,22 @@ const Auth = () => {
             {!isLogin && (
               <>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-foreground">Nome completo</label>
-                  <Input type="text" placeholder="Seu nome" value={fullName} onChange={(e) => setFullName(e.target.value)} required maxLength={100} className="h-12 rounded-xl border-border bg-card" />
+                  <label htmlFor="auth-fullname" className="text-sm font-semibold text-foreground">Nome completo</label>
+                  <Input id="auth-fullname" type="text" placeholder="Seu nome" value={fullName} onChange={(e) => setFullName(e.target.value)} required maxLength={100} className="h-12 rounded-xl border-border bg-card" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-foreground">Data de nascimento</label>
-                  <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} required className="h-12 rounded-xl border-border bg-card" />
+                  <label htmlFor="auth-birthdate" className="text-sm font-semibold text-foreground">Data de nascimento</label>
+                  <Input id="auth-birthdate" type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} required className="h-12 rounded-xl border-border bg-card" />
                 </div>
               </>
             )}
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-foreground">Email</label>
-              <Input type="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="h-12 rounded-xl border-border bg-card" />
+              <label htmlFor="auth-email" className="text-sm font-semibold text-foreground">Email</label>
+              <Input id="auth-email" type="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="h-12 rounded-xl border-border bg-card" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-foreground">Senha</label>
-              <Input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} className="h-12 rounded-xl border-border bg-card" />
+              <label htmlFor="auth-password" className="text-sm font-semibold text-foreground">Senha</label>
+              <Input id="auth-password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} className="h-12 rounded-xl border-border bg-card" />
               {!isLogin && (
                 <p className="text-xs text-muted-foreground">Mín. 8 caracteres, 1 maiúscula, 1 número, 1 especial</p>
               )}
