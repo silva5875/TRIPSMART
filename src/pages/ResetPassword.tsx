@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Navigation, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -15,13 +16,64 @@ const ResetPassword = () => {
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
+  const [checking, setChecking] = useState(true);
   const { updatePassword, session } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (session) setReady(true);
+    if (session) {
+      setReady(true);
+      setChecking(false);
+    }
   }, [session]);
+
+  // Recovery links can land with tokens in the URL (hash or query). With a
+  // HashRouter the Supabase client may not pick them up automatically, so we
+  // parse and establish the session manually.
+  useEffect(() => {
+    let cancelled = false;
+
+    const collectParams = () => {
+      const raw = window.location.hash.replace(/^#/, '');
+      const parts = raw.split('#').concat(window.location.search.replace(/^\?/, ''));
+      const params = new URLSearchParams();
+      for (const part of parts) {
+        const qIndex = part.indexOf('?');
+        const query = qIndex >= 0 ? part.slice(qIndex + 1) : part.includes('=') ? part : '';
+        new URLSearchParams(query).forEach((v, k) => params.set(k, v));
+      }
+      return params;
+    };
+
+    const run = async () => {
+      const params = collectParams();
+      const access_token = params.get('access_token');
+      const refresh_token = params.get('refresh_token');
+      const code = params.get('code');
+
+      try {
+        if (access_token && refresh_token) {
+          await supabase.auth.setSession({ access_token, refresh_token });
+        } else if (code) {
+          await supabase.auth.exchangeCodeForSession(code);
+        }
+      } catch {
+        /* handled below via getSession */
+      }
+
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+      setReady(!!data.session);
+      setChecking(false);
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
