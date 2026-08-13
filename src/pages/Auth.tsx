@@ -11,12 +11,14 @@ import Seo from '@/components/Seo';
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [isForgot, setIsForgot] = useState(false);
+  const [forgotStep, setForgotStep] = useState<'email' | 'code'>('email');
+  const [recoveryCode, setRecoveryCode] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp, signInWithGoogle, resetPassword } = useAuth();
+  const { signIn, signUp, signInWithGoogle, resetPassword, verifyRecoveryCode } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -39,10 +41,31 @@ const Auth = () => {
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Email enviado!', description: 'Confira sua caixa de entrada para redefinir a senha.' });
-      setIsForgot(false);
+      toast({ title: 'Código enviado!', description: 'Confira seu email e digite o código de verificação.' });
+      setRecoveryCode('');
+      setForgotStep('code');
     }
   };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const { error } = await verifyRecoveryCode(email, recoveryCode.trim());
+    setLoading(false);
+    if (error) {
+      toast({ title: 'Código inválido', description: 'Verifique o código enviado ao seu email e tente novamente.', variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Código confirmado!', description: 'Agora defina sua nova senha.' });
+    navigate('/redefinir-senha');
+  };
+
+  const closeForgot = () => {
+    setIsForgot(false);
+    setForgotStep('email');
+    setRecoveryCode('');
+  };
+
 
 
   const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
