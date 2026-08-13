@@ -11,12 +11,14 @@ import Seo from '@/components/Seo';
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [isForgot, setIsForgot] = useState(false);
+  const [forgotStep, setForgotStep] = useState<'email' | 'code'>('email');
+  const [recoveryCode, setRecoveryCode] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp, signInWithGoogle, resetPassword } = useAuth();
+  const { signIn, signUp, signInWithGoogle, resetPassword, verifyRecoveryCode } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -39,10 +41,31 @@ const Auth = () => {
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Email enviado!', description: 'Confira sua caixa de entrada para redefinir a senha.' });
-      setIsForgot(false);
+      toast({ title: 'Código enviado!', description: 'Confira seu email e digite o código de verificação.' });
+      setRecoveryCode('');
+      setForgotStep('code');
     }
   };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const { error } = await verifyRecoveryCode(email, recoveryCode.trim());
+    setLoading(false);
+    if (error) {
+      toast({ title: 'Código inválido', description: 'Verifique o código enviado ao seu email e tente novamente.', variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Código confirmado!', description: 'Agora defina sua nova senha.' });
+    navigate('/redefinir-senha');
+  };
+
+  const closeForgot = () => {
+    setIsForgot(false);
+    setForgotStep('email');
+    setRecoveryCode('');
+  };
+
 
 
   const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
@@ -144,27 +167,66 @@ const Auth = () => {
               <ArrowLeft size={14} /> Voltar ao início
             </Button>
             <h1 className="text-3xl font-black tracking-display text-foreground">
-              {isForgot ? 'Esqueci minha senha' : isLogin ? 'Bem-vindo de volta' : 'Criar conta'}
+              {isForgot ? (forgotStep === 'email' ? 'Esqueci minha senha' : 'Digite o código') : isLogin ? 'Bem-vindo de volta' : 'Criar conta'}
             </h1>
             <p className="text-muted-foreground mt-2">
-              {isForgot ? 'Enviaremos um link de recuperação para o seu email' : isLogin ? 'Entre para planejar sua viagem' : 'Cadastre-se para começar a explorar'}
+              {isForgot
+                ? forgotStep === 'email'
+                  ? 'Enviaremos um código de recuperação para o seu email'
+                  : `Enviamos um código para ${email}`
+                : isLogin ? 'Entre para planejar sua viagem' : 'Cadastre-se para começar a explorar'}
             </p>
           </div>
 
           {isForgot ? (
+            forgotStep === 'email' ? (
             <form onSubmit={handleForgot} className="space-y-4">
               <div className="space-y-2">
                 <label htmlFor="forgot-email" className="text-sm font-semibold text-foreground">Email</label>
                 <Input id="forgot-email" type="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="h-12 rounded-xl border-border bg-card" />
               </div>
               <Button type="submit" disabled={loading} className="w-full h-12 rounded-xl text-base font-bold bg-pe-blue hover:bg-pe-blue/90 text-white border-0">
-                {loading ? 'Enviando...' : 'Enviar link de recuperação'}
+                {loading ? 'Enviando...' : 'Enviar código'}
               </Button>
-              <button type="button" onClick={() => setIsForgot(false)} className="w-full text-center text-sm font-bold text-primary hover:underline pt-2">
+              <button type="button" onClick={closeForgot} className="w-full text-center text-sm font-bold text-primary hover:underline pt-2">
                 Voltar ao login
               </button>
             </form>
+            ) : (
+            <form onSubmit={handleVerifyCode} className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="recovery-code" className="text-sm font-semibold text-foreground">Código de verificação</label>
+                <Input
+                  id="recovery-code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="000000"
+                  value={recoveryCode}
+                  onChange={(e) => setRecoveryCode(e.target.value)}
+                  required
+                  maxLength={10}
+                  className="h-12 rounded-xl border-border bg-card text-center text-2xl font-black tracking-[0.4em]"
+                />
+              </div>
+              <Button type="submit" disabled={loading || recoveryCode.trim().length < 6} className="w-full h-12 rounded-xl text-base font-bold bg-pe-blue hover:bg-pe-blue/90 text-white border-0">
+                {loading ? 'Verificando...' : 'Verificar código'}
+              </Button>
+              <div className="flex items-center justify-between pt-1">
+                <button type="button" onClick={() => setForgotStep('email')} className="text-sm font-bold text-muted-foreground hover:underline">
+                  Trocar email
+                </button>
+                <button type="button" disabled={loading} onClick={(e) => handleForgot(e as unknown as React.FormEvent)} className="text-sm font-bold text-primary hover:underline">
+                  Reenviar código
+                </button>
+              </div>
+              <button type="button" onClick={closeForgot} className="w-full text-center text-sm font-bold text-muted-foreground hover:underline pt-1">
+                Voltar ao login
+              </button>
+            </form>
+            )
           ) : (
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <>
