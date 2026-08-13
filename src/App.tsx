@@ -8,6 +8,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
+
 import Planner from "./pages/Planner";
 import TravelHistory from "./pages/TravelHistory";
 import Community from "./pages/Community";
@@ -33,6 +35,8 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/redefinir-senha" element={<ResetPassword />} />
+
               <Route path="/planejar" element={<Planner />} />
               <Route path="/historico" element={<TravelHistory />} />
               <Route path="/comunidade" element={<Community />} />
