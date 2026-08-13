@@ -111,8 +111,9 @@ const ResetPassword = () => {
           </div>
           <h1 className="text-3xl font-black tracking-display text-foreground">Nova senha</h1>
           <p className="text-muted-foreground mt-2">
-            {ready ? 'Escolha uma nova senha para sua conta' : 'Abra esta página pelo link enviado no seu email de recuperação.'}
+            {checking ? 'Validando seu link de recuperação...' : ready ? 'Escolha uma nova senha para sua conta' : 'Link inválido ou expirado. Solicite um novo código na tela de login.'}
           </p>
+
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
