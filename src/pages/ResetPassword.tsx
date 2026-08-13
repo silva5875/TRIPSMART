@@ -126,7 +126,7 @@ const ResetPassword = () => {
             <label htmlFor="confirm-password" className="text-sm font-semibold text-foreground">Confirmar nova senha</label>
             <Input id="confirm-password" type="password" placeholder="••••••••" value={confirm} onChange={(e) => setConfirm(e.target.value)} required className="h-12 rounded-xl border-border bg-card" />
           </div>
-          <Button type="submit" disabled={loading || !ready} className="w-full h-12 rounded-xl text-base font-bold bg-pe-blue hover:bg-pe-blue/90 text-white border-0">
+          <Button type="submit" disabled={loading || checking || !ready} className="w-full h-12 rounded-xl text-base font-bold bg-pe-blue hover:bg-pe-blue/90 text-white border-0">
             {loading ? 'Salvando...' : 'Alterar senha'}
           </Button>
           <Button type="button" variant="ghost" size="sm" onClick={() => navigate('/auth')} className="w-full gap-1.5 text-xs font-bold text-muted-foreground">
