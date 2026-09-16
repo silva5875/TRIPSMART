@@ -5,14 +5,16 @@ import {
   Star, TrendingUp, Users,
 } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
-  useAdminTopPages, useAdminTopReferrers, useAdminTrafficOverview, useAdminTrafficSeries,
+  useAdminDayTraffic, useAdminTopPages, useAdminTopReferrers, useAdminTrafficOverview, useAdminTrafficSeries,
 } from '@/data/analytics';
 import {
   useAdminActivitySeries, useAdminComments, useAdminLikes, useAdminOverview,
   useAdminReviews, useAdminSharedItineraries, useAdminTravelHistory, useAdminUsers,
 } from '@/data/admin';
 import { budgetLabel, formatProtocol } from '@/lib/format';
+import { getErrorMessage } from '@/lib/errors';
 import AdminDrillDownSheet, { type DrillDownRow } from './AdminDrillDownSheet';
 
 type DrillDown = 'users-new-7d' | 'users-new-30d' | 'trips' | 'shared' | 'comments' | 'likes' | 'reviews' | null;
@@ -34,6 +36,23 @@ const activityChartConfig = {
 const dayLabel = (day: string) =>
   new Date(`${day}T00:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 
+/** `day` é uma data pura ('YYYY-MM-DD'), sem hora — `T00:00:00` explícito
+ * evita que `new Date(day)` (interpretado como UTC) exiba o dia anterior em
+ * fusos negativos, como o do Brasil. */
+const dayLabelLong = (day: string) =>
+  new Date(`${day}T00:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+/**
+ * Extrai o dia clicado a partir do evento de clique do `<BarChart>` (não de
+ * cada `<Bar>` individual). Com ~30 dias divididos em 2-3 barras por
+ * categoria, cada barra renderiza com só 1-2px de largura — clicar nela com
+ * precisão é praticamente impossível, mesmo de propósito. `activePayload`
+ * usa a mesma área de detecção (a coluna inteira do dia) que já reage ao
+ * hover do tooltip, bem mais larga e fácil de acertar.
+ */
+const dayFromChartClick = (state: { activePayload?: { payload: { day: string } }[] } | null): string | null =>
+  state?.activePayload?.[0]?.payload?.day ?? null;
+
 interface AdminOverviewTabProps {
   /** Cartão "Usuários" já tem uma aba própria, rica, com busca e ações — em
    * vez de duplicar essa lista num painel lateral, ele só troca de aba. */
@@ -50,16 +69,20 @@ const AdminOverviewTab = ({ onGoToUsers }: AdminOverviewTabProps) => {
   const { data: activitySeries = [], isLoading: loadingActivitySeries } = useAdminActivitySeries(30);
 
   const [drillDown, setDrillDown] = useState<DrillDown>(null);
+  // Dia clicado numa barra dos gráficos abaixo — 'YYYY-MM-DD' ou null.
+  const [activityDay, setActivityDay] = useState<string | null>(null);
+  const [trafficDay, setTrafficDay] = useState<string | null>(null);
 
-  // Cada consulta só é habilitada quando o cartão correspondente é aberto —
-  // sem isso, todo carregamento do painel dispararia 5 requisições extras
-  // que a maioria das visitas nunca usa.
+  // Cada consulta só é habilitada quando o cartão (ou o dia de um gráfico)
+  // correspondente é aberto — sem isso, todo carregamento do painel
+  // dispararia várias requisições extras que a maioria das visitas nunca usa.
   const { data: usersForNew = [], isLoading: loadingUsersForNew } = useAdminUsers();
-  const { data: trips = [], isLoading: loadingTrips } = useAdminTravelHistory({ enabled: drillDown === 'trips' });
-  const { data: shared = [], isLoading: loadingShared } = useAdminSharedItineraries({ enabled: drillDown === 'shared' });
+  const { data: trips = [], isLoading: loadingTrips } = useAdminTravelHistory({ enabled: drillDown === 'trips' || !!activityDay });
+  const { data: shared = [], isLoading: loadingShared } = useAdminSharedItineraries({ enabled: drillDown === 'shared' || !!activityDay });
   const { data: comments = [], isLoading: loadingComments } = useAdminComments({ enabled: drillDown === 'comments' });
   const { data: likes = [], isLoading: loadingLikes } = useAdminLikes({ enabled: drillDown === 'likes' });
   const { data: reviews = [], isLoading: loadingReviews } = useAdminReviews({ enabled: drillDown === 'reviews' });
+  const { data: dayTraffic, isLoading: loadingDayTraffic, error: dayTrafficError } = useAdminDayTraffic(trafficDay);
 
   const trafficChartData = trafficSeries.map((d) => ({ ...d, label: dayLabel(d.day) }));
   const activityChartData = activitySeries.map((d) => ({ ...d, label: dayLabel(d.day) }));
@@ -112,6 +135,34 @@ const AdminOverviewTab = ({ onGoToUsers }: AdminOverviewTabProps) => {
     meta: formatDate(r.createdAt),
   }));
 
+  // Junta as três origens do gráfico de atividade (cadastro, viagem salva,
+  // roteiro compartilhado) numa lista só, filtrada pelo dia clicado na barra.
+  const activityDayRows: DrillDownRow[] = activityDay
+    ? [
+        ...usersForNew
+          .filter((u) => u.created_at.slice(0, 10) === activityDay)
+          .map((u) => ({
+            id: `user-${u.id}`,
+            title: u.display_name || 'Sem nome',
+            subtitle: `Novo cadastro · ${u.email ?? ''}`,
+          })),
+        ...trips
+          .filter((t) => t.createdAt.slice(0, 10) === activityDay)
+          .map((t) => ({
+            id: `trip-${t.id}`,
+            title: t.state,
+            subtitle: `Viagem salva · ${t.displayName ?? 'Sem nome'} · ${budgetLabel(t.budget)}`,
+          })),
+        ...shared
+          .filter((s) => s.createdAt.slice(0, 10) === activityDay)
+          .map((s) => ({
+            id: `shared-${s.id}`,
+            title: s.title,
+            subtitle: `Roteiro compartilhado · ${s.displayName ?? 'Sem nome'}`,
+          })),
+      ]
+    : [];
+
   return (
     <div className="space-y-8">
       {/* ===== Tráfego ===== */}
@@ -135,13 +186,17 @@ const AdminOverviewTab = ({ onGoToUsers }: AdminOverviewTabProps) => {
           Fluxo de pessoas nos últimos 30 dias
         </h2>
         <p className="text-xs text-muted-foreground mb-4">
-          Visualizações de página e visitantes únicos por dia, logados ou não.
+          Visualizações de página e visitantes únicos por dia, logados ou não. Clique numa barra para ver o detalhe do dia.
         </p>
         {loadingTrafficSeries ? (
           <p className="text-sm text-muted-foreground text-center py-12">Carregando...</p>
         ) : (
           <ChartContainer config={trafficChartConfig} className="h-[260px] w-full">
-            <BarChart data={trafficChartData}>
+            <BarChart
+              data={trafficChartData}
+              className="cursor-pointer"
+              onClick={(state) => { const day = dayFromChartClick(state); if (day) setTrafficDay(day); }}
+            >
               <CartesianGrid vertical={false} />
               <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={11} />
               <ChartTooltip content={<ChartTooltipContent />} />
@@ -191,13 +246,17 @@ const AdminOverviewTab = ({ onGoToUsers }: AdminOverviewTabProps) => {
           Cadastros e conteúdo gerado
         </h2>
         <p className="text-xs text-muted-foreground mb-4">
-          Cadastros, viagens salvas e roteiros compartilhados por dia.
+          Cadastros, viagens salvas e roteiros compartilhados por dia. Clique numa barra para ver o detalhe do dia.
         </p>
         {loadingActivitySeries ? (
           <p className="text-sm text-muted-foreground text-center py-12">Carregando...</p>
         ) : (
           <ChartContainer config={activityChartConfig} className="h-[260px] w-full">
-            <BarChart data={activityChartData}>
+            <BarChart
+              data={activityChartData}
+              className="cursor-pointer"
+              onClick={(state) => { const day = dayFromChartClick(state); if (day) setActivityDay(day); }}
+            >
               <CartesianGrid vertical={false} />
               <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} fontSize={11} />
               <ChartTooltip content={<ChartTooltipContent />} />
@@ -270,6 +329,54 @@ const AdminOverviewTab = ({ onGoToUsers }: AdminOverviewTabProps) => {
         empty="Nenhum cadastro nos últimos 30 dias."
         rows={newUsersRows(30)}
       />
+
+      <AdminDrillDownSheet
+        open={!!activityDay}
+        onOpenChange={(open) => !open && setActivityDay(null)}
+        title={activityDay ? `Atividade em ${dayLabelLong(activityDay)}` : 'Atividade do dia'}
+        description="Cadastros, viagens salvas e roteiros compartilhados neste dia."
+        loading={loadingUsersForNew || loadingTrips || loadingShared}
+        empty="Nenhuma atividade registrada neste dia."
+        rows={activityDayRows}
+      />
+
+      <Sheet open={!!trafficDay} onOpenChange={(open) => !open && setTrafficDay(null)}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto bg-background border-l border-border">
+          <SheetHeader>
+            <SheetTitle className="text-xl font-black text-foreground">
+              {trafficDay ? `Tráfego em ${dayLabelLong(trafficDay)}` : 'Tráfego do dia'}
+            </SheetTitle>
+          </SheetHeader>
+          {loadingDayTraffic ? (
+            <p className="text-sm text-muted-foreground text-center py-12">Carregando...</p>
+          ) : dayTrafficError ? (
+            <p className="text-sm text-destructive text-center py-12">
+              {getErrorMessage(dayTrafficError, 'Não foi possível carregar o tráfego deste dia. Tente novamente.')}
+            </p>
+          ) : (
+            <div className="mt-6 space-y-6">
+              <div className="grid grid-cols-2 gap-3">
+                <StatCard icon={<Eye size={16} />} label="Visualizações" value={dayTraffic?.pageviews} loading={false} color="bg-pe-blue" />
+                <StatCard icon={<Users size={16} />} label="Visitantes únicos" value={dayTraffic?.unique_visitors} loading={false} color="bg-pe-gold" />
+              </div>
+              <RankingCard
+                icon={<FileText size={16} />}
+                title="Páginas mais visitadas"
+                loading={false}
+                empty="Sem visualizações neste dia."
+                rows={(dayTraffic?.top_pages ?? []).map((p) => ({ key: p.path, label: p.path, value: p.views }))}
+              />
+              <RankingCard
+                icon={<ExternalLink size={16} />}
+                title="De onde vieram as pessoas"
+                loading={false}
+                empty="Sem acessos externos neste dia (só visitas diretas)."
+                rows={(dayTraffic?.top_referrers ?? []).map((r) => ({ key: r.referrer_host, label: r.referrer_host, value: r.views }))}
+              />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };

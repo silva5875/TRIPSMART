@@ -9,9 +9,14 @@ import { throwFunctionError } from './functionsError';
 import { attachProfiles } from './itineraries';
 import { queryKeys } from './queryKeys';
 
-/** Tamanho das listagens administrativas por trás dos cartões de "Atividade
- * gerada no site" — não precisam de paginação de verdade, só de um teto. */
-const ADMIN_DRILLDOWN_LIMIT = 50;
+/**
+ * Tamanho das listagens administrativas por trás dos cartões de "Atividade
+ * gerada no site" — não precisam de paginação de verdade, só de um teto.
+ * 200 (não 50): o clique num dia específico do gráfico de atividade filtra
+ * esta mesma lista por data — um teto pequeno demais deixaria de fora dias
+ * mais antigos dentro da janela de 30 dias assim que o total passasse dele.
+ */
+const ADMIN_DRILLDOWN_LIMIT = 200;
 
 /** Tabelas com soft delete (migration 20260916100000). */
 export type SoftDeletableEntity =

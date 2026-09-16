@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type {
-  AdminTopPage, AdminTopReferrer, AdminTrafficDay, AdminTrafficOverview,
+  AdminDayTrafficDetail, AdminTopPage, AdminTopReferrer, AdminTrafficDay, AdminTrafficOverview,
 } from '@/integrations/supabase/database';
 import { queryKeys } from './queryKeys';
 
@@ -128,5 +128,19 @@ export function useAdminTopReferrers(daysBack = 30, limit = 10) {
       if (error) throw error;
       return data ?? [];
     },
+  });
+}
+
+/** Detalhe de um dia específico — clique numa barra do gráfico "Fluxo de
+ * pessoas". `day` no formato YYYY-MM-DD. */
+export function useAdminDayTraffic(day: string | null) {
+  return useQuery({
+    queryKey: queryKeys.adminDayTraffic(day ?? ''),
+    queryFn: async (): Promise<AdminDayTrafficDetail> => {
+      const { data, error } = await supabase.rpc('admin_day_traffic_detail', { target_day: day! });
+      if (error) throw error;
+      return data![0] ?? { pageviews: 0, unique_visitors: 0, top_pages: [], top_referrers: [] };
+    },
+    enabled: !!day,
   });
 }

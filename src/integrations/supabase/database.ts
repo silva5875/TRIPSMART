@@ -173,6 +173,14 @@ export interface AdminTopReferrer {
   views: number;
 }
 
+/** Migration 20260917130000. */
+export interface AdminDayTrafficDetail {
+  pageviews: number;
+  unique_visitors: number;
+  top_pages: AdminTopPage[];
+  top_referrers: AdminTopReferrer[];
+}
+
 /**
  * Migration 20260915120200.
  *
@@ -291,6 +299,10 @@ export type Database = {
       admin_top_referrers: {
         Args: { days_back?: number; limit_count?: number };
         Returns: AdminTopReferrer[];
+      };
+      admin_day_traffic_detail: {
+        Args: { target_day: string };
+        Returns: AdminDayTrafficDetail[];
       };
     };
     Enums: GeneratedPublic['Enums'];
