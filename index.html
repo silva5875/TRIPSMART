@@ -3,30 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!--
+      Só o que precisa existir antes do React montar. Canonical, og:*, twitter:*
+      e JSON-LD são responsabilidade do componente Seo (src/components/Seo.tsx),
+      que os define por rota e com a URL absoluta correta.
+
+      Declarar esses mesmos campos aqui criava DUAS tags de cada — a estática,
+      com valor genérico e `og:url` relativo ("/"), e a do componente. Canonical
+      duplicado faz o Google descartar o sinal.
+    -->
     <title>TRIPSMART — Roteiros inteligentes em Pernambuco com IA</title>
-    <meta name="description" content="Planeje sua viagem por Pernambuco com IA: roteiros personalizados em Recife, Olinda, Noronha, Porto de Galinhas, Caruaru e mais." />
     <meta name="author" content="TRIPSMART" />
-
-    <link rel="canonical" href="/" />
     <meta property="og:site_name" content="TRIPSMART" />
-    <meta property="og:title" content="TRIPSMART — Roteiros inteligentes em Pernambuco" />
-    <meta property="og:description" content="Roteiros personalizados com IA por cidades pernambucanas." />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="/" />
-
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="TRIPSMART — Roteiros inteligentes em Pernambuco" />
-    <meta name="twitter:description" content="Roteiros personalizados com IA por cidades pernambucanas." />
-
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "Organization",
-        "name": "TRIPSMART",
-        "description": "Plataforma de planejamento de viagens com IA, focada em Pernambuco.",
-        "url": "/"
-      }
-    </script>
   </head>
 
   <body>

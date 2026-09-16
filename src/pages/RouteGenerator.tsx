@@ -1,44 +1,27 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import ThemeToggle from "@/components/ThemeToggle";
+import AppHeader from "@/components/AppHeader";
 import {
-  Navigation, ArrowLeft, Compass, AlertTriangle, Lock,
+  Compass, AlertTriangle, Lock,
   MapPin, Sparkles, Crown, CreditCard, Clock, DollarSign,
   ChevronDown, ChevronUp, Footprints, Info, Lightbulb,
   Calendar, Users, ArrowUp,
 } from "lucide-react";
-import { pernambucoCities } from "@/data/mockData";
-import { supabase } from "@/integrations/supabase/client";
+import { budgetRanges, monthNames, pernambucoCities } from "@/data/mockData";
+import { generateRichItinerary } from "@/data/catalog";
+import { budgetLabel as budgetLabelFor } from "@/lib/format";
+import { getErrorMessage } from "@/lib/errors";
 import type { RichItinerary } from "@/types/richItinerary";
 import { toast } from "sonner";
 import Seo from "@/components/Seo";
 
-const months = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-];
-
-const budgetOptions = [
-  { id: "economico", label: "Econômico", range: "R$ 500–1.500", emoji: "💰" },
-  { id: "moderado", label: "Moderado", range: "R$ 1.500–3.000", emoji: "💳" },
-  { id: "confortavel", label: "Confortável", range: "R$ 3.000–6.000", emoji: "✨" },
-  { id: "premium", label: "Premium", range: "R$ 6.000–10.000", emoji: "👑" },
-  { id: "luxo", label: "Luxo", range: "R$ 10.000+", emoji: "💎" },
-];
-
 const RouteGenerator = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-
   const [selectedCity, setSelectedCity] = useState("");
   const [selectedMonth, setSelectedMonth] = useState<number>(0);
   const [budget, setBudget] = useState("");
-  const [budgetLabel, setBudgetLabel] = useState("");
   const [days, setDays] = useState(3);
   const [people, setPeople] = useState(1);
   const [groupType, setGroupType] = useState("solo");
@@ -53,6 +36,12 @@ const RouteGenerator = () => {
   const isFestive = selectedMonth === 2 || selectedMonth === 6;
   const festiveName = selectedMonth === 2 ? "Carnaval" : "São João";
 
+  // Derivado de `budget`, não guardado em paralelo: antes, editar o número
+  // manualmente depois de clicar num botão de faixa deixava o rótulo antigo
+  // ("Confortável") apontando para um valor que não era mais o budget atual
+  // — e esse par incoerente ia para a IA (paga) que gera o roteiro.
+  const budgetLabel = budget ? budgetLabelFor(Number(budget)) : "";
+
   const handleGenerate = async () => {
     const cityObj = pernambucoCities.find((c) => c.id === selectedCity);
     if (!cityObj || !selectedMonth || !budget) return;
@@ -60,28 +49,22 @@ const RouteGenerator = () => {
     setLoading(true);
     setItinerary(null);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-rich-itinerary", {
-        body: {
-          cityName: cityObj.name,
-          cityId: cityObj.id,
-          days,
-          month: selectedMonth,
-          budget: Number(budget),
-          budgetLabel,
-          people,
-          groupType,
-        },
+      const result = await generateRichItinerary({
+        cityName: cityObj.name,
+        cityId: cityObj.id,
+        days,
+        month: selectedMonth,
+        budget: Number(budget),
+        budgetLabel,
+        people,
+        groupType,
       });
 
-      if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || "Falha ao gerar roteiro");
-
-      setItinerary(data.data as RichItinerary);
+      setItinerary(result);
       setShowPaywall(true);
       setUnlocked(false);
-    } catch (err: any) {
-      console.error("Erro ao gerar roteiro:", err);
-      toast.error(err.message || "Erro ao gerar roteiro. Tente novamente.");
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Não foi possível gerar o roteiro. Tente novamente."));
     } finally {
       setLoading(false);
     }
@@ -98,10 +81,13 @@ const RouteGenerator = () => {
 
   const isFormValid = selectedCity && selectedMonth > 0 && Number(budget) > 0;
 
-  // Scroll listener for back-to-top
-  if (typeof window !== "undefined") {
-    window.addEventListener("scroll", () => setShowBackToTop(window.scrollY > 600), { passive: true });
-  }
+  // Antes isto rodava no corpo do componente, sem cleanup: cada render
+  // registrava mais um listener, e o próprio listener causava render.
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 600);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const periodColor = (period: string) => {
     if (period === "Manhã") return "bg-pe-gold/20 text-pe-gold border-pe-gold/30";
@@ -112,25 +98,7 @@ const RouteGenerator = () => {
   return (
     <div className="min-h-screen bg-background">
       <Seo title="Gerador de roteiro editorial — TRIPSMART" description="Roteiros narrativos, completos e ilustrados para sua viagem em Pernambuco." path="/#/gerador" />
-      {/* Nav */}
-      <nav className="sticky top-0 z-50 bg-pe-navy border-b border-pe-blue/20">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <button onClick={() => navigate("/")} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-            <div className="w-10 h-10 rounded-xl bg-pe-gold flex items-center justify-center">
-              <Navigation size={20} className="text-pe-navy" />
-            </div>
-            <span className="text-xl font-black tracking-tight text-white">
-              TRIP<span className="text-pe-gold">SMART</span>
-            </span>
-          </button>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="gap-1.5 text-xs font-bold text-white/80 hover:text-white hover:bg-white/10">
-              <ArrowLeft size={14} /> Início
-            </Button>
-          </div>
-        </div>
-      </nav>
+      <AppHeader />
 
       <div className="max-w-4xl mx-auto px-6 py-12 space-y-10">
         {/* Header */}
@@ -173,7 +141,7 @@ const RouteGenerator = () => {
               <Calendar size={12} /> Mês da viagem
             </Label>
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-              {months.map((m, i) => (
+              {monthNames.map((m, i) => (
                 <button key={m} onClick={() => setSelectedMonth(i + 1)}
                   className={`p-2.5 rounded-xl text-xs font-bold transition-all border ${
                     selectedMonth === i + 1 ? "bg-pe-gold text-pe-navy border-pe-gold" : "bg-background border-border text-foreground hover:border-pe-gold/40"
@@ -217,8 +185,8 @@ const RouteGenerator = () => {
               <DollarSign size={12} /> Orçamento
             </Label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {budgetOptions.map((b) => (
-                <button key={b.id} onClick={() => { setBudgetLabel(b.label); setBudget(b.range.replace(/[^\d]/g, "").slice(0, 5)); }}
+              {budgetRanges.map((b) => (
+                <button key={b.id} onClick={() => setBudget(String(b.max))}
                   className={`p-3 rounded-xl text-sm font-bold text-left transition-all border ${
                     budgetLabel === b.label ? "bg-pe-gold text-pe-navy border-pe-gold" : "bg-background border-border text-foreground hover:border-pe-gold/40"
                   }`}>

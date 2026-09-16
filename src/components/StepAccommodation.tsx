@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Star, MapPin, Navigation, HelpCircle, ExternalLink } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import StarRating from "@/components/StarRating";
+import { useAccommodations, type CatalogContext } from "@/data/catalog";
+import { useAccommodationRatingAverages } from "@/data/reviews";
+import { isSafeExternalUrl } from "@/lib/validation";
 import type { AccommodationDetail, TouristSpot } from "@/types/travel";
 
 interface StepAccommodationProps {
@@ -41,61 +41,25 @@ const StepAccommodation = ({
   transportToDestination,
   onNext,
 }: StepAccommodationProps) => {
-  const { toast } = useToast();
-  const [accommodations, setAccommodations] = useState<AccommodationDetail[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [avgRatings, setAvgRatings] = useState<Record<string, { avg: number; count: number }>>({});
-
-  useEffect(() => {
-    fetchAccommodations();
-    fetchAvgRatings();
-  }, [cityId]);
-
-  const fetchAccommodations = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("n8n-webhook", {
-        body: {
-          action: "get-accommodations",
-          params: {
-            city: cityId,
-            cityName,
-            budget,
-            budgetLabel,
-            people,
-            days,
-            month,
-            transportToDestination,
-            spots: selectedSpots.map((s) => ({ name: s.name, lat: s.lat, lng: s.lng, category: s.category })),
-          },
-        },
-      });
-      if (data?.data && Array.isArray(data.data)) {
-        setAccommodations(data.data);
-      } else {
-        setAccommodations([]);
-      }
-    } catch {
-      setAccommodations([]);
-    }
-    setLoading(false);
+  // Antes as deps eram só [cityId], então mudar orçamento/pessoas/dias não
+  // refazia a busca apesar de esses campos irem no payload. A queryKey inclui
+  // todos eles.
+  const catalogContext: CatalogContext = {
+    cityId,
+    cityName,
+    budget,
+    budgetLabel,
+    people,
+    days,
+    month,
+    transportToDestination,
   };
 
-  const fetchAvgRatings = async () => {
-    const { data } = await supabase.from("accommodation_reviews" as any).select("accommodation_name, score").eq("city_id", cityId);
-    if (data && Array.isArray(data)) {
-      const map: Record<string, number[]> = {};
-      (data as any[]).forEach((r: any) => {
-        if (!map[r.accommodation_name]) map[r.accommodation_name] = [];
-        map[r.accommodation_name].push(r.score);
-      });
-      const result: Record<string, { avg: number; count: number }> = {};
-      Object.entries(map).forEach(([name, scores]) => {
-        result[name] = { avg: scores.reduce((a, b) => a + b, 0) / scores.length, count: scores.length };
-      });
-      setAvgRatings(result);
-    }
-  };
+  const { data: accommodations = [], isLoading: loading } = useAccommodations(
+    catalogContext,
+    selectedSpots
+  );
+  const { data: avgRatings = {} } = useAccommodationRatingAverages(cityId);
 
   // Calculate distance from accommodation to the main (first) selected spot
   const getDistanceToMainSpot = (acc: AccommodationDetail) => {
@@ -196,7 +160,7 @@ const StepAccommodation = ({
                     </span>
                   </div>
                 </div>
-                {acc.bookingUrl && (
+                {isSafeExternalUrl(acc.bookingUrl) && (
                   <a href={acc.bookingUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 mt-2 text-xs font-bold px-3 py-1.5 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition-opacity">
                     <ExternalLink size={12} /> Reservar
                   </a>

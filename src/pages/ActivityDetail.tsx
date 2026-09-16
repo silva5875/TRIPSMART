@@ -1,8 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Star, MapPin, Calendar, DollarSign, Compass, Navigation } from 'lucide-react';
+import { Star, MapPin, Calendar, DollarSign, Compass } from 'lucide-react';
 import { pernambucoCities, spotsByCity, categoryLabels, monthNames } from '@/data/mockData';
+import AppHeader from '@/components/AppHeader';
 import Seo from '@/components/Seo';
 
 const ActivityDetail = () => {
@@ -58,22 +59,7 @@ const ActivityDetail = () => {
             : undefined,
         }}
       />
-      {/* Nav */}
-      <nav className="sticky top-0 z-50 bg-background/90 backdrop-blur-md border-b border-border">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl gradient-pe flex items-center justify-center">
-              <Navigation size={20} className="text-primary-foreground" />
-            </div>
-            <span className="text-xl font-black tracking-tight">
-              <span className="text-primary">TRIP</span><span className="text-accent">SMART</span>
-            </span>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="gap-1.5 text-xs font-bold">
-            <ArrowLeft size={14} /> Voltar
-          </Button>
-        </div>
-      </nav>
+      <AppHeader backLabel="Voltar" />
 
       {/* Hero */}
       <section className="relative">

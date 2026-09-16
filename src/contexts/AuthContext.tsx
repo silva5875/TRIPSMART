@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { lovable } from '@/integrations/lovable';
 import type { User, Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -61,10 +60,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { error: error as Error | null };
   };
   const signInWithGoogle = async () => {
-    const result = await lovable.auth.signInWithOAuth('google', {
-      redirect_uri: window.location.origin,
+    // OAuth nativo do Supabase. A implementação anterior passava pelo broker da
+    // Lovable (`/~oauth/initiate`), um caminho servido só pela hospedagem
+    // deles — em localhost ele devolvia o próprio index.html e o fluxo morria.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+      },
     });
-    return { error: (result?.error as Error) ?? null };
+    return { error: error as Error | null };
   };
 
   const resetPassword = async (email: string) => {

@@ -90,7 +90,7 @@ export interface SharedItinerary {
   accommodation: AccommodationDetail | null;
   local_transport: string | null;
   itinerary_data: ItineraryDay[] | null;
-  map_data: any;
+  map_data: unknown;
   rating_avg: number;
   rating_count: number;
   likes_count: number;

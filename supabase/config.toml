@@ -1,1 +1,6 @@
-project_id = "rhcyoeunfhbwtkikgeac"
+project_id = "dmlazxwzftnbgadfnnsb"
+
+[functions.admin-create-user]
+# Só quem tem sessão válida chega ao código da função; a checagem de admin
+# em si acontece dentro dela (is_admin() via RPC), não aqui.
+verify_jwt = true

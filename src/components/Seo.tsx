@@ -1,4 +1,5 @@
 import { Helmet } from "react-helmet-async";
+import { SITE_URL } from "@/lib/site";
 
 interface SeoProps {
   title: string;
@@ -9,11 +10,9 @@ interface SeoProps {
   jsonLd?: Record<string, unknown> | Record<string, unknown>[];
 }
 
-const SITE = "https://tripsmart.lovable.app";
-
 const Seo = ({ title, description, path, image, type = "website", jsonLd }: SeoProps) => {
-  const url = `${SITE}${path}`;
-  const ogImage = image || `${SITE}/og-default.jpg`;
+  const url = `${SITE_URL}${path}`;
+  const ogImage = image || `${SITE_URL}/og-default.jpg`;
   return (
     <Helmet>
       <title>{title}</title>

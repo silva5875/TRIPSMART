@@ -60,6 +60,12 @@
     --demand-moderate: 42 100% 50%;
     --demand-low: 160 84% 39%;
 
+    /* Séries dos gráficos do painel administrativo — mesma paleta da marca */
+    --chart-1: 217 91% 40%;  /* pe-blue */
+    --chart-2: 42 100% 50%;  /* pe-gold */
+    --chart-3: 355 85% 52%;  /* pe-red */
+    --chart-4: 160 84% 39%;  /* demand-low */
+
     --card-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px -8px rgba(0,0,0,0.1);
     --brand-bezier: cubic-bezier(0.16, 1, 0.3, 1);
   }
@@ -114,6 +120,11 @@
     --demand-high: 355 80% 58%;
     --demand-moderate: 42 95% 55%;
     --demand-low: 160 84% 39%;
+
+    --chart-1: 217 85% 55%;
+    --chart-2: 42 95% 55%;
+    --chart-3: 355 80% 58%;
+    --chart-4: 160 84% 39%;
   }
 }
 

@@ -1,4 +1,4 @@
-import type { TouristSpot, AccommodationDetail, RestaurantDetail, CityData } from "@/types/travel";
+import type { TouristSpot, CityData } from "@/types/travel";
 
 export const pernambucoImages: Record<string, string> = {
   recife: "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/18/00/2e/31/recife.jpg?w=600&h=400&s=1",

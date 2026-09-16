@@ -30,6 +30,8 @@ import {
 import { pernambucoCities, spotsByCity, categoryLabels, pernambucoImages } from "@/data/mockData";
 import heroPernambuco from "@/assets/hero-pernambuco.jpg";
 import Seo from "@/components/Seo";
+import { siteUrl } from "@/lib/site";
+import { usePlannerProgress } from "@/data/plannerProgress";
 
 const featuredDestinations = [
   { name: "Recife", cityId: "recife", emoji: "🏙️", imageUrl: pernambucoImages.recife, tag: "Capital", color: "bg-pe-blue", desc: "Marco Zero, Brennand e praias urbanas" },
@@ -67,19 +69,16 @@ const Landing = () => {
   const [cityFilter, setCityFilter] = useState("");
   const [searchSpot, setSearchSpot] = useState("");
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const [hasSavedPlan, setHasSavedPlan] = useState(false);
+  // O rascunho vem do banco (planner_progress), não de sessionStorage: assim
+  // o aviso "retomar plano" aparece mesmo depois de logout/login em outra
+  // sessão ou dispositivo.
+  const { data: savedProgress } = usePlannerProgress();
+  const hasSavedPlan = !!savedProgress;
 
   useEffect(() => {
     const onScroll = () => setShowScrollTop(window.scrollY > 600);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  useEffect(() => {
-    try {
-      const saved = sessionStorage.getItem("planner-state");
-      setHasSavedPlan(!!saved);
-    } catch {}
   }, []);
 
   const goToPlanner = (cityId?: string) => {
@@ -114,14 +113,14 @@ const Landing = () => {
             "@context": "https://schema.org",
             "@type": "WebSite",
             name: "TRIPSMART",
-            url: "https://tripsmart.lovable.app/",
+            url: siteUrl("/"),
             description: "Roteiros inteligentes em Pernambuco com IA.",
           },
           {
             "@context": "https://schema.org",
             "@type": "Organization",
             name: "TRIPSMART",
-            url: "https://tripsmart.lovable.app/",
+            url: siteUrl("/"),
           },
         ]}
       />

@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Search, Star, Check, Loader2 } from "lucide-react";
 import { pernambucoCities, monthNames, categoryLabels } from "@/data/mockData";
-import { supabase } from "@/integrations/supabase/client";
 import StarRating from "@/components/StarRating";
+import { useTouristSpots, type CatalogContext } from "@/data/catalog";
+import { useActivityRatingAverages } from "@/data/reviews";
 import type { TouristSpot, CityData } from "@/types/travel";
 
 interface StepCityProps {
@@ -38,9 +39,25 @@ const StepCity = ({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedSpots, setSelectedSpots] = useState<TouristSpot[]>([]);
   const [catFilter, setCatFilter] = useState("Todos");
-  const [spots, setSpots] = useState<TouristSpot[]>([]);
-  const [loadingSpots, setLoadingSpots] = useState(false);
-  const [activityAvgRatings, setActivityAvgRatings] = useState<Record<string, { avg: number; count: number }>>({});
+
+  // A query é chaveada pela cidade, então trocar de cidade rápido não deixa mais
+  // a resposta antiga sobrescrever a nova — cada cidade tem sua própria entrada.
+  const catalogContext: CatalogContext | null = selectedCity
+    ? {
+        cityId: selectedCity.id,
+        cityName: selectedCity.name,
+        budget,
+        budgetLabel,
+        people,
+        days,
+        month,
+        transportToDestination,
+      }
+    : null;
+
+  const { data: spots = [], isLoading: loadingSpots, isError } = useTouristSpots(catalogContext);
+  const { data: activityAvgRatings = {} } = useActivityRatingAverages(selectedCity?.id);
+
   const filteredCities = useMemo(() => {
     return pernambucoCities.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
   }, [search]);
@@ -50,57 +67,13 @@ const StepCity = ({
     return spots.filter((s) => s.category === catFilter);
   }, [spots, catFilter]);
 
-  const fetchSpots = async (city: CityData) => {
-    setLoadingSpots(true);
-    setSpots([]);
-    try {
-      const { data, error } = await supabase.functions.invoke("n8n-webhook", {
-        body: {
-          action: "get-tourist-spots",
-          params: {
-            city: city.id,
-            cityName: city.name,
-            budget,
-            budgetLabel,
-            people,
-            days,
-            month,
-            transportToDestination,
-          },
-        },
-      });
-      if (data?.data && Array.isArray(data.data)) {
-        setSpots(data.data);
-      }
-    } catch {
-      // silently handle fetch errors
-    }
-    setLoadingSpots(false);
-    // Fetch avg ratings for this city
-    const { data: reviews } = await supabase.from("activity_reviews" as any).select("activity_name, score").eq("city_id", city.id);
-    if (reviews && Array.isArray(reviews)) {
-      const map: Record<string, number[]> = {};
-      (reviews as any[]).forEach((r: any) => {
-        if (!map[r.activity_name]) map[r.activity_name] = [];
-        map[r.activity_name].push(r.score);
-      });
-      const result: Record<string, { avg: number; count: number }> = {};
-      Object.entries(map).forEach(([name, scores]) => {
-        result[name] = { avg: scores.reduce((a, b) => a + b, 0) / scores.length, count: scores.length };
-      });
-      setActivityAvgRatings(result);
-    }
-  };
-
-  // Auto-open if pre-selected
+  // Abre direto quando a cidade veio pela URL (?city=).
   useEffect(() => {
-    if (preSelectedCity) {
-      const city = pernambucoCities.find((c) => c.id === preSelectedCity);
-      if (city) {
-        setSelectedCity(city);
-        setSheetOpen(true);
-        fetchSpots(city);
-      }
+    if (!preSelectedCity) return;
+    const city = pernambucoCities.find((c) => c.id === preSelectedCity);
+    if (city) {
+      setSelectedCity(city);
+      setSheetOpen(true);
     }
   }, [preSelectedCity]);
 
@@ -122,7 +95,6 @@ const StepCity = ({
     setSelectedSpots([]);
     setCatFilter("Todos");
     setSheetOpen(true);
-    fetchSpots(city);
   };
 
   const handleConfirmSpots = () => {
@@ -242,10 +214,18 @@ const StepCity = ({
                 <Loader2 size={32} className="animate-spin text-primary" />
                 <p className="text-muted-foreground text-sm">Buscando pontos turisticos..</p>
               </div>
-            ) : filteredSpots.length === 0 ? (
+            ) : isError ? (
               <div className="text-center py-8">
                 <p className="text-muted-foreground mb-2">Não foi possível carregar as atividades.</p>
                 <p className="text-xs text-primary font-semibold">Tente novamente mais tarde.</p>
+              </div>
+            ) : filteredSpots.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">
+                  {spots.length === 0
+                    ? "Nenhuma atividade encontrada para esta cidade."
+                    : "Nenhuma atividade nesta categoria."}
+                </p>
               </div>
             ) : (
               filteredSpots.map((spot) => {

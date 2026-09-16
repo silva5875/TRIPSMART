@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import Seo from '@/components/Seo';
-
-const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+import { PASSWORD_REGEX, PASSWORD_REQUIREMENTS_TEXT } from '@/lib/validation';
+import { getErrorMessage } from '@/lib/errors';
 
 const ResetPassword = () => {
   const [password, setPassword] = useState('');
@@ -77,8 +77,8 @@ const ResetPassword = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!passwordRegex.test(password)) {
-      toast({ title: 'Senha fraca', description: 'A senha deve ter no mínimo 8 caracteres, 1 letra maiúscula, 1 número e 1 caractere especial.', variant: 'destructive' });
+    if (!PASSWORD_REGEX.test(password)) {
+      toast({ title: 'Senha fraca', description: PASSWORD_REQUIREMENTS_TEXT, variant: 'destructive' });
       return;
     }
     if (password !== confirm) {
@@ -89,7 +89,7 @@ const ResetPassword = () => {
     const { error } = await updatePassword(password);
     setLoading(false);
     if (error) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erro', description: getErrorMessage(error, 'Não foi possível alterar sua senha. Tente novamente.'), variant: 'destructive' });
       return;
     }
     toast({ title: 'Senha alterada!', description: 'Sua nova senha já está ativa.' });

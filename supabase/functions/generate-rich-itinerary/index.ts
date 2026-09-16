@@ -175,7 +175,7 @@ IMPORTANTE: Gere conteúdo REAL e detalhado sobre ${cityName}. Use locais, resta
     try {
       const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
       parsed = JSON.parse(cleaned);
-    } catch (parseErr) {
+    } catch {
       console.error("Failed to parse AI JSON:", content.substring(0, 500));
       throw new Error("Failed to parse itinerary data from AI");
     }

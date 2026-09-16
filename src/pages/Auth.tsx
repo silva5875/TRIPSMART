@@ -7,6 +7,8 @@ import { useNavigate } from 'react-router-dom';
 import { Navigation, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Seo from '@/components/Seo';
+import { PASSWORD_REGEX, PASSWORD_REQUIREMENTS_TEXT, isAtLeast18 } from '@/lib/validation';
+import { getErrorMessage } from '@/lib/errors';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -27,7 +29,7 @@ const Auth = () => {
     const { error } = await signInWithGoogle();
     setLoading(false);
     if (error) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erro', description: getErrorMessage(error, 'Não foi possível entrar com o Google. Tente novamente.'), variant: 'destructive' });
     } else {
       navigate('/');
     }
@@ -39,7 +41,7 @@ const Auth = () => {
     const { error } = await resetPassword(email);
     setLoading(false);
     if (error) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erro', description: getErrorMessage(error, 'Não foi possível enviar o código. Tente novamente.'), variant: 'destructive' });
     } else {
       toast({ title: 'Código enviado!', description: 'Confira seu email e digite o código de verificação.' });
       setRecoveryCode('');
@@ -68,25 +70,14 @@ const Auth = () => {
 
 
 
-  const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
-
-  const validateAge = (dateStr: string): boolean => {
-    const birth = new Date(dateStr);
-    const today = new Date();
-    let age = today.getFullYear() - birth.getFullYear();
-    const m = today.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-    return age >= 18;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isLogin) {
-      if (!passwordRegex.test(password)) {
-        toast({ title: 'Senha fraca', description: 'A senha deve ter no mínimo 8 caracteres, 1 letra maiúscula, 1 número e 1 caractere especial.', variant: 'destructive' });
+      if (!PASSWORD_REGEX.test(password)) {
+        toast({ title: 'Senha fraca', description: PASSWORD_REQUIREMENTS_TEXT, variant: 'destructive' });
         return;
       }
-      if (!birthDate || !validateAge(birthDate)) {
+      if (!birthDate || !isAtLeast18(birthDate)) {
         toast({ title: 'Idade inválida', description: 'Você precisa ter pelo menos 18 anos para se cadastrar.', variant: 'destructive' });
         return;
       }
@@ -97,7 +88,8 @@ const Auth = () => {
       : await signUp(email, password, fullName, birthDate);
     setLoading(false);
     if (error) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+      const fallback = isLogin ? 'Não foi possível entrar. Verifique seus dados e tente novamente.' : 'Não foi possível criar sua conta. Tente novamente.';
+      toast({ title: 'Erro', description: getErrorMessage(error, fallback), variant: 'destructive' });
     } else if (!isLogin) {
       toast({ title: 'Conta criada!', description: 'Verifique seu email para confirmar.' });
     } else {

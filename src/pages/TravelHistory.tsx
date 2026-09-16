@@ -1,170 +1,123 @@
-import { useEffect, useState, useRef } from 'react';
+import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useRequireAuth } from '@/hooks/use-require-auth';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { ArrowLeft, Plane, Calendar, Users, MapPin, Trash2, DollarSign, Bus, Hotel, Utensils, Star, Navigation, ChevronRight, MessageSquare, FileDown } from 'lucide-react';
-import ThemeToggle from '@/components/ThemeToggle';
+import {
+  Plane, Calendar, Users, MapPin, Trash2, DollarSign, Bus, Hotel,
+  Utensils, Star, ChevronRight, MessageSquare, FileDown,
+} from 'lucide-react';
+import AppHeader from '@/components/AppHeader';
 import Seo from '@/components/Seo';
 import StarRating from '@/components/StarRating';
-import { budgetRanges, transportOptions, localTransportOptions, monthNames } from '@/data/mockData';
+import { useToast } from '@/hooks/use-toast';
+import {
+  cityIdOf, useDeleteTravelRecord, useTravelHistory, type TravelRecord,
+} from '@/data/travelHistory';
+import {
+  useMyAccommodationReviews, useMyActivityReviews,
+  useUpsertAccommodationReview, useUpsertActivityReview,
+} from '@/data/reviews';
+import {
+  budgetLabel, formatCurrency, formatProtocol, groupTypeLabel, localTransportLabel, monthName, transportLabel,
+} from '@/lib/format';
+import { exportElementToPdf, slugifyForFileName } from '@/lib/pdf';
+import { getErrorMessage } from '@/lib/errors';
 import type { TouristSpot } from '@/types/travel';
 
-interface TravelRecord {
-  id: string; budget: number; people: number; group_type: string; country: string; state: string;
-  month: number | null; entertainment: string[]; food: string[]; accommodation: string | null;
-  local_transport: string | null; transport_to_destination: string | null;
-  tourist_spots: TouristSpot[] | null; restaurants: any[] | null; created_at: string;
-}
-
 const TravelHistory = () => {
-  const { user } = useAuth();
+  const { loading: authLoading } = useRequireAuth();
   const navigate = useNavigate();
-  const [records, setRecords] = useState<TravelRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  const { data: records = [], isLoading } = useTravelHistory();
+  const deleteRecord = useDeleteTravelRecord();
+
   const [selected, setSelected] = useState<TravelRecord | null>(null);
-  // Review state
-  const [activityRatings, setActivityRatings] = useState<Record<string, number>>({});
-  const [accommodationRating, setAccommodationRating] = useState(0);
-  const [savingReview, setSavingReview] = useState<string | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [accommodationDraft, setAccommodationDraft] = useState(0);
   const detailRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { if (!user) { navigate('/auth'); return; } fetchHistory(); }, [user]);
+  const selectedCityId = selected ? cityIdOf(selected) : null;
+  const { data: activityRatings = {} } = useMyActivityReviews(selectedCityId);
+  const { data: accommodationRatings = {} } = useMyAccommodationReviews(selectedCityId);
+  const upsertActivityReview = useUpsertActivityReview();
+  const upsertAccommodationReview = useUpsertAccommodationReview();
 
-  // Load existing reviews when a record is selected
-  useEffect(() => {
-    if (!selected || !user) return;
-    setActivityRatings({});
-    setAccommodationRating(0);
-    loadExistingReviews(selected);
-  }, [selected?.id]);
+  const spots = (selected?.tourist_spots ?? []) as TouristSpot[];
+  const restaurants = (selected?.restaurants ?? []) as { name: string; cuisine?: string; address?: string; rating?: number }[];
+  const savedAccommodationScore = selected?.accommodation
+    ? accommodationRatings[selected.accommodation] ?? 0
+    : 0;
 
-  const fetchHistory = async () => {
-    const { data } = await supabase.from('travel_history').select('*').order('created_at', { ascending: false });
-    setRecords((data as unknown as TravelRecord[]) || []);
-    setLoading(false);
+  const openRecord = (record: TravelRecord) => {
+    setSelected(record);
+    setAccommodationDraft(0);
   };
 
-  const loadExistingReviews = async (record: TravelRecord) => {
-    if (!user) return;
-    const cityId = record.state; // city identifier
-    // Load activity reviews
-    const spots = (record.tourist_spots || []) as TouristSpot[];
-    if (spots.length > 0) {
-      const { data: actReviews } = await supabase
-        .from("activity_reviews" as any)
-        .select("activity_name, score")
-        .eq("user_id", user.id)
-        .eq("city_id", cityId);
-      if (actReviews && Array.isArray(actReviews)) {
-        const map: Record<string, number> = {};
-        (actReviews as any[]).forEach((r: any) => { map[r.activity_name] = r.score; });
-        setActivityRatings(map);
-      }
-    }
-    // Load accommodation review
-    if (record.accommodation) {
-      const { data: accReviews } = await supabase
-        .from("accommodation_reviews" as any)
-        .select("score")
-        .eq("user_id", user.id)
-        .eq("accommodation_name", record.accommodation)
-        .eq("city_id", cityId)
-        .limit(1);
-      if (accReviews && Array.isArray(accReviews) && accReviews.length > 0) {
-        setAccommodationRating((accReviews[0] as any).score);
-      }
-    }
-  };
-
-  const saveActivityReview = async (activityName: string, cityId: string) => {
-    if (!user) return;
-    const score = activityRatings[activityName];
-    if (!score) return;
-    setSavingReview(activityName);
-    await supabase.from("activity_reviews" as any).upsert(
-      { user_id: user.id, activity_name: activityName, city_id: cityId, score, comment: null } as any,
-      { onConflict: "user_id,activity_name,city_id" }
-    );
-    setSavingReview(null);
-  };
-
-  const saveAccommodationReview = async (accommodationName: string, cityId: string) => {
-    if (!user || !accommodationRating) return;
-    setSavingReview("accommodation");
-    await supabase.from("accommodation_reviews" as any).upsert(
-      { user_id: user.id, accommodation_name: accommodationName, city_id: cityId, score: accommodationRating, comment: null } as any,
-      { onConflict: "user_id,accommodation_name,city_id" }
-    );
-    setSavingReview(null);
-  };
-
-  const deleteRecord = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    await supabase.from('travel_history').delete().eq('id', id);
-    setRecords((prev) => prev.filter((r) => r.id !== id));
+  const handleDelete = (id: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    deleteRecord.mutate(id, {
+      onError: (error: Error) =>
+        toast({ title: 'Erro ao excluir', description: getErrorMessage(error, 'Não foi possível excluir a viagem. Tente novamente.'), variant: 'destructive' }),
+    });
     if (selected?.id === id) setSelected(null);
+  };
+
+  const rateActivity = (spot: TouristSpot, score: number) => {
+    if (!selectedCityId) {
+      toast({
+        title: 'Cidade não identificada',
+        description: 'Não foi possível vincular a avaliação a uma cidade.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    upsertActivityReview.mutate(
+      { activityName: spot.name, cityId: selectedCityId, score, category: spot.category ?? null },
+      {
+        onError: (error: Error) =>
+          toast({ title: 'Erro ao avaliar', description: getErrorMessage(error, 'Não foi possível salvar sua avaliação. Tente novamente.'), variant: 'destructive' }),
+      }
+    );
+  };
+
+  const rateAccommodation = () => {
+    if (!selected?.accommodation || !selectedCityId || !accommodationDraft) return;
+    upsertAccommodationReview.mutate(
+      {
+        accommodationName: selected.accommodation,
+        cityId: selectedCityId,
+        score: accommodationDraft,
+      },
+      {
+        onSuccess: () => toast({ title: 'Avaliação salva!' }),
+        onError: (error: Error) =>
+          toast({ title: 'Erro ao avaliar', description: getErrorMessage(error, 'Não foi possível salvar sua avaliação. Tente novamente.'), variant: 'destructive' }),
+      }
+    );
   };
 
   const exportToPdf = async () => {
     if (!detailRef.current || !selected) return;
     setExportingPdf(true);
     try {
-      const html2canvas = (await import("html2canvas")).default;
-      const { jsPDF } = await import("jspdf");
-      const canvas = await html2canvas(detailRef.current, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfW = pdf.internal.pageSize.getWidth() - 20;
-      const imgH = (canvas.height * pdfW) / canvas.width;
-      let left = imgH, pos = 10;
-      pdf.addImage(imgData, "JPEG", 10, pos, pdfW, imgH);
-      left -= pdf.internal.pageSize.getHeight() - 20;
-      while (left > 0) {
-        pos = left - imgH + 10;
-        pdf.addPage();
-        pdf.addImage(imgData, "JPEG", 10, pos, pdfW, imgH);
-        left -= pdf.internal.pageSize.getHeight() - 20;
-      }
-      pdf.save(`historico-${selected.state.toLowerCase().replace(/\s/g, "-")}.pdf`);
-    } catch (e: any) {
-      console.error("PDF export error:", e);
+      await exportElementToPdf(detailRef.current, `historico-${slugifyForFileName(selected.state)}`);
+    } catch (error) {
+      toast({
+        title: 'Erro ao exportar PDF',
+        description: getErrorMessage(error, 'Não foi possível exportar o PDF. Tente novamente.'),
+        variant: 'destructive',
+      });
     }
     setExportingPdf(false);
   };
 
-  const groupTypeLabel = (t: string) => t === 'couple' ? 'Casal' : t === 'friends' ? 'Amigos' : 'Solo';
-  const getBudgetLabel = (budget: number) => { const range = budgetRanges.find(r => budget >= r.min && budget <= r.max); return range ? `${range.emoji} ${range.label}` : `R$ ${budget.toLocaleString('pt-BR')}`; };
-  const getTransportLabel = (id: string | null) => { if (!id) return null; const t = transportOptions.find(o => o.id === id); return t ? `${t.emoji} ${t.label}` : id; };
-  const getLocalTransportLabel = (id: string | null) => { if (!id) return null; const t = localTransportOptions.find(o => o.id === id); return t ? `${t.emoji} ${t.label}` : id; };
-
-  const spots = (selected?.tourist_spots || []) as TouristSpot[];
-  const restaurants = (selected?.restaurants || []) as any[];
-
   return (
     <div className="min-h-screen bg-background">
       <Seo title="Histórico de viagens — TRIPSMART" description="Acesse seus roteiros salvos e baixe em PDF." path="/#/historico" />
-      <nav className="sticky top-0 z-50 bg-pe-navy border-b border-pe-blue/20">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 h-14 md:h-16 flex items-center justify-between">
-          <button onClick={() => navigate('/')} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-pe-gold flex items-center justify-center">
-              <Navigation size={16} className="text-pe-navy" />
-            </div>
-            <span className="text-lg md:text-xl font-black tracking-tight text-white">
-              TRIP<span className="text-pe-gold">SMART</span>
-            </span>
-          </button>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="gap-1.5 text-xs font-bold text-white/80 hover:text-white hover:bg-white/10">
-              <ArrowLeft size={14} /> <span className="hidden sm:inline">Início</span>
-            </Button>
-          </div>
-        </div>
-      </nav>
+      <AppHeader />
 
       <div className="bg-pe-blue px-4 md:px-6 py-8 md:py-10">
         <div className="max-w-5xl mx-auto">
@@ -174,7 +127,7 @@ const TravelHistory = () => {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-10">
-        {loading ? (
+        {isLoading || authLoading ? (
           <p className="text-muted-foreground text-center py-12">Carregando...</p>
         ) : records.length === 0 ? (
           <div className="text-center py-20">
@@ -187,7 +140,15 @@ const TravelHistory = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
             {records.map((r, i) => (
-              <motion.button key={r.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} onClick={() => setSelected(r)} className="rounded-2xl border border-border bg-card text-left hover:border-pe-blue/40 transition-all group overflow-hidden" style={{ boxShadow: 'var(--card-shadow)' }}>
+              <motion.button
+                key={r.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                onClick={() => openRecord(r)}
+                className="rounded-2xl border border-border bg-card text-left hover:border-pe-blue/40 transition-all group overflow-hidden"
+                style={{ boxShadow: 'var(--card-shadow)' }}
+              >
                 <div className="h-1.5 bg-pe-gold" />
                 <div className="p-4 md:p-5">
                   <div className="flex items-start justify-between">
@@ -198,12 +159,17 @@ const TravelHistory = () => {
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="flex items-center gap-1 text-xs text-muted-foreground"><Users size={12} /> {r.people}p · {groupTypeLabel(r.group_type)}</span>
-                        {r.month && <span className="text-xs px-2 py-0.5 rounded-full bg-pe-gold/10 text-pe-gold font-semibold">📅 {monthNames[(r.month || 1) - 1]}</span>}
+                        {r.month && <span className="text-xs px-2 py-0.5 rounded-full bg-pe-gold/10 text-pe-gold font-semibold">📅 {monthName(r.month)}</span>}
                       </div>
-                      <p className="text-sm text-foreground font-bold tabular-nums">{getBudgetLabel(r.budget)}</p>
+                      <p className="text-sm text-foreground font-bold tabular-nums">{budgetLabel(r.budget)}</p>
+                      <p className="text-[10px] font-bold text-primary tracking-wider">
+                        {formatProtocol(r.protocol_number, r.created_at)}
+                      </p>
                     </div>
                     <div className="flex items-center gap-2 ml-2">
-                      <button onClick={(e) => deleteRecord(r.id, e)} className="text-muted-foreground hover:text-destructive transition-colors p-1"><Trash2 size={16} /></button>
+                      <button onClick={(e) => handleDelete(r.id, e)} className="text-muted-foreground hover:text-destructive transition-colors p-1" aria-label="Excluir viagem">
+                        <Trash2 size={16} />
+                      </button>
                       <ChevronRight size={18} className="text-muted-foreground group-hover:text-primary transition-colors" />
                     </div>
                   </div>
@@ -214,7 +180,6 @@ const TravelHistory = () => {
         )}
       </div>
 
-      {/* Detail Sheet */}
       <Sheet open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto bg-background border-l border-border">
           <SheetHeader>
@@ -222,40 +187,44 @@ const TravelHistory = () => {
               <div className="w-8 h-8 rounded-lg bg-pe-blue flex items-center justify-center"><MapPin size={16} className="text-white" /></div>
               {selected?.state}
             </SheetTitle>
+            {selected && (
+              <p className="text-xs font-bold text-primary tracking-wider">
+                Protocolo {formatProtocol(selected.protocol_number, selected.created_at)}
+              </p>
+            )}
           </SheetHeader>
           {selected && (
             <div ref={detailRef} className="mt-6 space-y-6">
               <div className="p-4 rounded-xl bg-section-blue border border-pe-blue/10 space-y-3">
                 <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Opções selecionadas</h3>
                 <div className="grid grid-cols-2 gap-3">
-                  <InfoItem icon={<DollarSign size={14} />} label="Orçamento" value={`R$ ${selected.budget.toLocaleString('pt-BR')}`} sublabel={getBudgetLabel(selected.budget)} color="text-pe-gold" />
+                  <InfoItem icon={<DollarSign size={14} />} label="Orçamento" value={formatCurrency(selected.budget)} sublabel={budgetLabel(selected.budget)} color="text-pe-gold" />
                   <InfoItem icon={<Users size={14} />} label="Pessoas" value={`${selected.people}`} sublabel={groupTypeLabel(selected.group_type)} color="text-primary" />
-                  <InfoItem icon={<Calendar size={14} />} label="Mês" value={selected.month ? monthNames[selected.month - 1] : 'Não definido'} color="text-pe-red" />
-                  <InfoItem icon={<Bus size={14} />} label="Transporte (ida)" value={getTransportLabel(selected.transport_to_destination) || 'Não definido'} color="text-primary" />
-                  <InfoItem icon={<Bus size={14} />} label="Transporte local" value={getLocalTransportLabel(selected.local_transport) || 'Não definido'} color="text-pe-gold" />
+                  <InfoItem icon={<Calendar size={14} />} label="Mês" value={monthName(selected.month)} color="text-pe-red" />
+                  <InfoItem icon={<Bus size={14} />} label="Transporte (ida)" value={transportLabel(selected.transport_to_destination)} color="text-primary" />
+                  <InfoItem icon={<Bus size={14} />} label="Transporte local" value={localTransportLabel(selected.local_transport)} color="text-pe-gold" />
                   <InfoItem icon={<Hotel size={14} />} label="Hospedagem" value={selected.accommodation || 'Não definido'} color="text-pe-red" />
                 </div>
               </div>
 
-              {/* Accommodation review */}
-              {selected.accommodation && user && (
+              {selected.accommodation && (
                 <div className="p-4 rounded-xl border border-border bg-card space-y-2">
                   <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                     <Hotel size={14} className="text-pe-red" /> Avaliar hospedagem
                   </h3>
                   <p className="text-xs text-muted-foreground">{selected.accommodation}</p>
                   <StarRating
-                    value={accommodationRating}
-                    onChange={(v) => setAccommodationRating(v)}
+                    value={accommodationDraft || savedAccommodationScore}
+                    onChange={setAccommodationDraft}
                     size={18}
                   />
                   <Button
                     size="sm"
-                    disabled={!accommodationRating || savingReview === "accommodation"}
-                    onClick={() => saveAccommodationReview(selected.accommodation!, selected.state)}
+                    disabled={!accommodationDraft || upsertAccommodationReview.isPending}
+                    onClick={rateAccommodation}
                     className="rounded-full text-xs gap-1"
                   >
-                    <MessageSquare size={12} /> {savingReview === "accommodation" ? "Salvando..." : "Salvar avaliação"}
+                    <MessageSquare size={12} /> {upsertAccommodationReview.isPending ? 'Salvando...' : 'Salvar avaliação'}
                   </Button>
                 </div>
               )}
@@ -266,7 +235,7 @@ const TravelHistory = () => {
                     <Star size={14} className="text-pe-gold" /> Pontos turísticos ({spots.length})
                   </h3>
                   <div className="space-y-2">
-                    {spots.map((spot: TouristSpot) => (
+                    {spots.map((spot) => (
                       <div key={spot.id} className="p-3 rounded-xl border border-border bg-card space-y-2">
                         <div className="flex items-center gap-3">
                           <span className="text-2xl">{spot.imageEmoji}</span>
@@ -279,31 +248,17 @@ const TravelHistory = () => {
                             <p className="text-[10px] text-muted-foreground">{spot.avgCostPerPerson === 0 ? 'Grátis' : `R$${spot.avgCostPerPerson}`}</p>
                           </div>
                         </div>
-                        {/* Activity review inline */}
-                        {user && (
-                          <div className="flex items-center gap-2 pt-1 border-t border-border/50">
-                            <StarRating
-                              value={activityRatings[spot.name] || 0}
-                              onChange={(v) => {
-                                setActivityRatings((p) => ({ ...p, [spot.name]: v }));
-                                // Auto-save on rating change
-                                setTimeout(() => {
-                                  const score = v;
-                                  if (!score || !user) return;
-                                  supabase.from("activity_reviews" as any).upsert(
-                                    { user_id: user.id, activity_name: spot.name, city_id: selected.state, score, comment: null } as any,
-                                    { onConflict: "user_id,activity_name,city_id" }
-                                  );
-                                }, 100);
-                              }}
-                              size={14}
-                              showValue={false}
-                            />
-                            <span className="text-[10px] text-muted-foreground">
-                              {activityRatings[spot.name] ? "Avaliado ✓" : "Avaliar"}
-                            </span>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2 pt-1 border-t border-border/50">
+                          <StarRating
+                            value={activityRatings[spot.name] || 0}
+                            onChange={(score) => rateActivity(spot, score)}
+                            size={14}
+                            showValue={false}
+                          />
+                          <span className="text-[10px] text-muted-foreground">
+                            {activityRatings[spot.name] ? 'Avaliado ✓' : 'Avaliar'}
+                          </span>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -316,7 +271,7 @@ const TravelHistory = () => {
                     <Utensils size={14} className="text-pe-red" /> Restaurantes ({restaurants.length})
                   </h3>
                   <div className="space-y-2">
-                    {restaurants.map((r: any, idx: number) => (
+                    {restaurants.map((r, idx) => (
                       <div key={idx} className="p-3 rounded-xl border border-border bg-card flex items-center gap-3">
                         <span className="text-2xl">🍽️</span>
                         <div className="flex-1 min-w-0">
@@ -342,7 +297,7 @@ const TravelHistory = () => {
 
               <div className="flex flex-col gap-3 pt-4 border-t border-border">
                 <Button onClick={exportToPdf} disabled={exportingPdf} variant="outline" className="w-full rounded-full font-bold gap-2">
-                  <FileDown size={16} /> {exportingPdf ? "Exportando..." : "Baixar PDF"}
+                  <FileDown size={16} /> {exportingPdf ? 'Exportando...' : 'Baixar PDF'}
                 </Button>
                 <p className="text-xs text-muted-foreground text-center">
                   Planejado em {new Date(selected.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
@@ -356,7 +311,9 @@ const TravelHistory = () => {
   );
 };
 
-const InfoItem = ({ icon, label, value, sublabel, color = "text-primary" }: { icon: React.ReactNode; label: string; value: string; sublabel?: string; color?: string }) => (
+const InfoItem = ({ icon, label, value, sublabel, color = 'text-primary' }: {
+  icon: React.ReactNode; label: string; value: string; sublabel?: string; color?: string;
+}) => (
   <div className="flex items-start gap-2">
     <span className={`${color} mt-0.5`}>{icon}</span>
     <div>

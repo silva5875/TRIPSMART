@@ -1,103 +1,106 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  Navigation, ArrowLeft, User, Mail, Edit3, Save, LogOut, History,
+  User, Mail, Edit3, Save, LogOut, History,
   Users, MapPin, Shield, Eye, EyeOff, Check, AlertTriangle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import ThemeToggle from '@/components/ThemeToggle';
+import { useRequireAuth } from '@/hooks/use-require-auth';
+import AppHeader from '@/components/AppHeader';
 import Seo from '@/components/Seo';
+import {
+  useMyBirthDate, useProfile, useProfileStats, useUpdateMyBirthDate, useUpdateProfile,
+} from '@/data/profiles';
+import { useIsAdmin } from '@/data/admin';
+import { formatBirthDate, initials as initialOf } from '@/lib/format';
+import { isAtLeast18 } from '@/lib/validation';
+import { getErrorMessage } from '@/lib/errors';
 
 const Profile = () => {
-  const { user, signOut } = useAuth();
+  const { user } = useRequireAuth();
+  const { signOut, updatePassword } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const { data: profile, isLoading } = useProfile();
+  const { data: stats } = useProfileStats();
+  const { data: isAdmin } = useIsAdmin();
+  const { data: myBirthDate } = useMyBirthDate();
+  const updateProfile = useUpdateProfile();
+  const updateMyBirthDate = useUpdateMyBirthDate();
+
   const [displayName, setDisplayName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [birthDate, setBirthDate] = useState('');
   const [editing, setEditing] = useState(false);
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
-  const [stats, setStats] = useState({ trips: 0, shared: 0, likes: 0 });
+
+  // Semeia os campos editáveis quando o perfil chega (e ao cancelar a edição).
+  useEffect(() => {
+    setDisplayName(profile?.display_name ?? '');
+    setAvatarUrl(profile?.avatar_url ?? '');
+  }, [profile]);
 
   useEffect(() => {
-    if (!user) { navigate('/auth'); return; }
-    fetchProfile();
-    fetchStats();
-  }, [user]);
-
-  const fetchProfile = async () => {
-    if (!user) return;
-    const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-    if (data) { setDisplayName(data.display_name || ''); setAvatarUrl(data.avatar_url || ''); }
-    setLoading(false);
-  };
-
-  const fetchStats = async () => {
-    if (!user) return;
-    const [{ count: trips }, { count: shared }, { count: likesCount }] = await Promise.all([
-      supabase.from('travel_history').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-      supabase.from('shared_itineraries').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-      supabase.from('itinerary_likes').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-    ]);
-    setStats({ trips: trips || 0, shared: shared || 0, likes: likesCount || 0 });
-  };
+    setBirthDate(myBirthDate ?? '');
+  }, [myBirthDate]);
 
   const handleSaveProfile = async () => {
-    if (!user) return;
-    setSaving(true);
-    const { error } = await supabase.from('profiles').upsert({ id: user.id, display_name: displayName.trim() || null, avatar_url: avatarUrl.trim() || null });
-    setSaving(false);
-    if (error) { toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' }); }
-    else { setEditing(false); toast({ title: 'Perfil atualizado! ✅' }); }
+    // Data de nascimento é opcional aqui — muita conta antiga (ou criada via
+    // Google) nunca teve esse dado, e forçar agora bloquearia qualquer edição
+    // de nome/avatar de quem só quer trocar a foto. Só validamos se algo foi
+    // digitado.
+    if (birthDate && !isAtLeast18(birthDate)) {
+      toast({ title: 'Data inválida', description: 'É preciso ter pelo menos 18 anos.', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      await updateProfile.mutateAsync({ displayName, avatarUrl });
+      if (birthDate && birthDate !== myBirthDate) {
+        await updateMyBirthDate.mutateAsync(birthDate);
+      }
+      setEditing(false);
+      toast({ title: 'Perfil atualizado!' });
+    } catch (error) {
+      toast({ title: 'Erro ao salvar', description: getErrorMessage(error, 'Não foi possível salvar seu perfil. Tente novamente.'), variant: 'destructive' });
+    }
+  };
+
+  const cancelEditing = () => {
+    setEditing(false);
+    setDisplayName(profile?.display_name ?? '');
+    setAvatarUrl(profile?.avatar_url ?? '');
+    setBirthDate(myBirthDate ?? '');
   };
 
   const handleChangePassword = async () => {
     if (newPassword.length < 8) { toast({ title: 'Senha muito curta', description: 'Mínimo 8 caracteres.', variant: 'destructive' }); return; }
     if (newPassword !== confirmPassword) { toast({ title: 'Senhas não coincidem', variant: 'destructive' }); return; }
     setChangingPassword(true);
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    const { error } = await updatePassword(newPassword);
     setChangingPassword(false);
-    if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); }
-    else { setNewPassword(''); setConfirmPassword(''); setShowPasswordSection(false); toast({ title: 'Senha alterada com sucesso! 🔒' }); }
+    if (error) { toast({ title: 'Erro', description: getErrorMessage(error, 'Não foi possível alterar sua senha. Tente novamente.'), variant: 'destructive' }); }
+    else { setNewPassword(''); setConfirmPassword(''); setShowPasswordSection(false); toast({ title: 'Senha alterada com sucesso!' }); }
   };
 
-  if (loading) return null;
-  const initials = (displayName || user?.email || 'U')[0].toUpperCase();
+  if (isLoading) return null;
+  const initials = initialOf(displayName || user?.email);
+  const saving = updateProfile.isPending || updateMyBirthDate.isPending;
 
   return (
     <div className="min-h-screen bg-background">
       <Seo title="Meu perfil — TRIPSMART" description="Gerencie sua conta e veja suas estatísticas de viagens em Pernambuco." path="/#/perfil" />
-      {/* Nav */}
-      <nav className="sticky top-0 z-50 bg-pe-navy border-b border-pe-blue/20">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <button onClick={() => navigate('/')} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-            <div className="w-10 h-10 rounded-xl bg-pe-gold flex items-center justify-center">
-              <Navigation size={20} className="text-pe-navy" />
-            </div>
-            <span className="text-xl font-black tracking-tight text-white">
-              TRIP<span className="text-pe-gold">SMART</span>
-            </span>
-          </button>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="gap-1.5 text-xs font-bold text-white/80 hover:text-white hover:bg-white/10">
-              <ArrowLeft size={14} /> Início
-            </Button>
-          </div>
-        </div>
-      </nav>
+      <AppHeader />
 
       {/* Profile header banner */}
       <div className="bg-pe-blue h-32 relative">
@@ -118,9 +121,9 @@ const Profile = () => {
         {/* Stats */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-3 gap-4">
           {[
-            { icon: History, label: 'Viagens', value: stats.trips, color: 'bg-pe-blue' },
-            { icon: Users, label: 'Compartilhados', value: stats.shared, color: 'bg-pe-red' },
-            { icon: MapPin, label: 'Curtidas', value: stats.likes, color: 'bg-pe-gold' },
+            { icon: History, label: 'Viagens', value: stats?.trips ?? 0, color: 'bg-pe-blue' },
+            { icon: Users, label: 'Compartilhados', value: stats?.shared ?? 0, color: 'bg-pe-red' },
+            { icon: MapPin, label: 'Curtidas', value: stats?.likes ?? 0, color: 'bg-pe-gold' },
           ].map((stat) => (
             <div key={stat.label} className="p-4 rounded-2xl border border-border bg-card text-center" style={{ boxShadow: 'var(--card-shadow)' }}>
               <div className={`w-10 h-10 rounded-xl ${stat.color} flex items-center justify-center mx-auto mb-2`}>
@@ -155,6 +158,20 @@ const Profile = () => {
               {editing ? <Input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://exemplo.com/foto.jpg" className="h-11 rounded-xl" /> : <p className="text-sm font-semibold text-foreground py-2">{avatarUrl || 'Não definido'}</p>}
             </div>
             <div className="space-y-2">
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data de nascimento</Label>
+              {editing ? (
+                <Input
+                  type="date"
+                  value={birthDate}
+                  onChange={(e) => setBirthDate(e.target.value)}
+                  max={new Date().toISOString().slice(0, 10)}
+                  className="h-11 rounded-xl"
+                />
+              ) : (
+                <p className="text-sm font-semibold text-foreground py-2">{formatBirthDate(myBirthDate)}</p>
+              )}
+            </div>
+            <div className="space-y-2">
               <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email</Label>
               <div className="flex items-center gap-2 py-2"><Mail size={14} className="text-muted-foreground" /><p className="text-sm text-foreground">{user?.email}</p><Check size={14} className="text-primary" /></div>
             </div>
@@ -163,7 +180,7 @@ const Profile = () => {
                 <Button onClick={handleSaveProfile} disabled={saving} className="bg-pe-blue hover:bg-pe-blue/90 text-white border-0 rounded-full font-bold gap-2">
                   <Save size={14} /> {saving ? 'Salvando...' : 'Salvar'}
                 </Button>
-                <Button variant="outline" onClick={() => { setEditing(false); fetchProfile(); }} className="rounded-full font-bold">Cancelar</Button>
+                <Button variant="outline" onClick={cancelEditing} className="rounded-full font-bold">Cancelar</Button>
               </div>
             )}
           </div>
@@ -205,6 +222,11 @@ const Profile = () => {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="grid grid-cols-2 gap-4">
           <Button variant="outline" onClick={() => navigate('/historico')} className="h-14 rounded-2xl font-bold gap-2 border-pe-blue/30 hover:bg-pe-blue/10 hover:text-primary"><History size={18} /> Histórico</Button>
           <Button variant="outline" onClick={() => navigate('/comunidade')} className="h-14 rounded-2xl font-bold gap-2 border-pe-gold/30 hover:bg-pe-gold/10 hover:text-pe-gold"><Users size={18} /> Comunidade</Button>
+          {isAdmin && (
+            <Button variant="outline" onClick={() => navigate('/admin')} className="h-14 rounded-2xl font-bold gap-2 border-pe-red/30 hover:bg-pe-red/10 hover:text-pe-red col-span-2">
+              <Shield size={18} /> Painel administrativo
+            </Button>
+          )}
         </motion.div>
 
         {/* Logout */}

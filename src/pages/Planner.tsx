@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useRequireAuth } from "@/hooks/use-require-auth";
 import BudgetBar from "@/components/BudgetBar";
 import StepBudget from "@/components/StepBudget";
 import StepMonth from "@/components/StepMonth";
@@ -14,10 +14,9 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Navigation } from "lucide-react";
 import type { TravelState, TouristSpot, AccommodationDetail } from "@/types/travel";
 import Seo from "@/components/Seo";
+import { usePlannerProgress, useSavePlannerProgress, useClearPlannerProgress, type PlannerStepName } from "@/data/plannerProgress";
 
-type StepName = 'budget' | 'month' | 'transport-arrival' | 'city' | 'accommodation' | 'local-transport' | 'summary';
-
-const STORAGE_KEY = "planner-state";
+type StepName = PlannerStepName;
 
 const initialState: TravelState = {
   budget: 0, budgetLabel: '', people: 1, adults: 1, children: 0, isCouple: false, rooms: 1, days: 3, groupType: "solo",
@@ -26,39 +25,50 @@ const initialState: TravelState = {
 };
 
 const Planner = () => {
-  const { user, loading } = useAuth();
+  const { loading: authLoading } = useRequireAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [step, setStep] = useState<StepName>('budget');
   const [data, setData] = useState<TravelState>(initialState);
   const [preSelectedCity, setPreSelectedCity] = useState<string | undefined>();
+  const [ready, setReady] = useState(false);
 
-  // Restore state from sessionStorage
-  useEffect(() => {
-    try {
-      const saved = sessionStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.data && parsed.step) {
-          setData(parsed.data);
-          setStep(parsed.step);
-        }
-      }
-    } catch {}
-  }, []);
+  // Rascunho salvo no banco (tabela planner_progress), amarrado à conta —
+  // sobrevive a reload, troca de dispositivo e logout/login, ao contrário de
+  // sessionStorage.
+  const { data: savedProgress, isError: progressError } = usePlannerProgress();
+  const saveProgress = useSavePlannerProgress();
+  const clearProgress = useClearPlannerProgress();
+  const restoredRef = useRef(false);
 
-  // Persist state to sessionStorage (exclude summary step)
+  // Restaura o rascunho uma única vez, assim que a consulta resolve (dado ou
+  // erro). `savedProgress === undefined` significa "ainda carregando" — só aí
+  // distinguimos de `null` (carregou e não havia rascunho).
   useEffect(() => {
+    if (restoredRef.current || (savedProgress === undefined && !progressError)) return;
+    restoredRef.current = true;
+    if (savedProgress) {
+      setData(savedProgress.data);
+      setStep(savedProgress.step);
+    }
+    setReady(true);
+  }, [savedProgress, progressError]);
+
+  // Persiste a cada troca de etapa — só depois de `ready`, para não
+  // sobrescrever um rascunho recém-restaurado com o estado inicial no
+  // primeiro render.
+  useEffect(() => {
+    if (!ready) return;
     if (step === 'summary') {
-      sessionStorage.removeItem(STORAGE_KEY);
+      clearProgress.mutate();
       return;
     }
     if (step !== 'budget' || data.budget > 0) {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ step, data }));
+      saveProgress.mutate({ step, data });
     }
-  }, [step, data]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, data, ready]);
 
-  useEffect(() => { if (!loading && !user) navigate('/auth'); }, [user, loading]);
   useEffect(() => { const c = searchParams.get('city'); if (c) setPreSelectedCity(c); }, [searchParams]);
 
   const getSteps = (): StepName[] => {
@@ -80,13 +90,13 @@ const Planner = () => {
   const handleRestart = () => {
     setData(initialState);
     setStep('budget');
-    sessionStorage.removeItem(STORAGE_KEY);
+    clearProgress.mutate();
   };
 
   const activeSteps = getSteps();
   const currentIdx = activeSteps.indexOf(step);
 
-  if (loading) return null;
+  if (authLoading || !ready) return null;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

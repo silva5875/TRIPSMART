@@ -2,13 +2,20 @@ import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Check, RotateCcw, Save, Map, ExternalLink, CalendarDays, Share2, MapPin, Clock, DollarSign, Lightbulb, AlertTriangle, ChevronDown, ChevronUp, Navigation, Info, Instagram, Phone, MessageSquare, FileDown } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Check, RotateCcw, Map, ExternalLink, CalendarDays, Share2, MapPin, Clock, DollarSign, Lightbulb, AlertTriangle, ChevronDown, ChevronUp, Navigation, Info, Instagram, Phone, MessageSquare, FileDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import TravelMap from "@/components/TravelMap";
 import StarRating from "@/components/StarRating";
-import { monthNames, transportOptions, localTransportOptions } from "@/data/mockData";
+import { generateItinerary } from "@/data/catalog";
+import { shareItinerary } from "@/data/itineraries";
+import { saveTravelRecord, type SavedTravelRecord } from "@/data/travelHistory";
+import { useUpsertAccommodationReview, useUpsertActivityReview } from "@/data/reviews";
+import { toItineraryPreferences, usePreferences, useRefreshPreferences } from "@/data/preferences";
+import { formatProtocol, localTransportLabel, monthName, transportLabel } from "@/lib/format";
+import { exportElementToPdf, slugifyForFileName } from "@/lib/pdf";
+import { isSafeExternalUrl } from "@/lib/validation";
+import { getErrorMessage } from "@/lib/errors";
 import type { TravelState } from "@/types/travel";
 import type { RichItinerary, RichDay, RichActivity, AttractionZone, AttractionHighlight } from "@/types/richItinerary";
 
@@ -20,8 +27,9 @@ interface StepSummaryProps {
 const StepSummary = ({ data, onRestart }: StepSummaryProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [saved, setSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState<'saving' | 'saved' | 'error'>('saving');
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [protocol, setProtocol] = useState<SavedTravelRecord | null>(null);
   const [shared, setShared] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [loadingItinerary, setLoadingItinerary] = useState(false);
@@ -34,12 +42,22 @@ const StepSummary = ({ data, onRestart }: StepSummaryProps) => {
   const [activityComments, setActivityComments] = useState<Record<string, string>>({});
   const [accommodationRating, setAccommodationRating] = useState(0);
   const [accommodationComment, setAccommodationComment] = useState("");
-  const [savingReview, setSavingReview] = useState<string | null>(null);
 
-  const transportLabel =
-    transportOptions.find((t) => t.id === data.transportToDestination)?.label || data.transportToDestination;
-  const localTransportLabel =
-    localTransportOptions.find((t) => t.id === data.localTransport)?.label || data.localTransport;
+  // Guardas síncronas contra gravação dupla. O state só atualiza no próximo
+  // render, então clicar em "Compartilhar" enquanto o auto-save estava em voo
+  // inseria a viagem duas vezes. `inFlightRef` guarda a promessa em curso para
+  // que quem chegar depois espere o mesmo save em vez de disparar outro.
+  const savedRef = useRef(false);
+  const inFlightRef = useRef<Promise<void> | null>(null);
+  // Mesma ideia para a geração do roteiro por IA, mas sem trava permanente:
+  // diferente do save (que só deve acontecer uma vez), gerar de novo depois
+  // de um erro é o comportamento esperado do botão "Tentar novamente".
+  const generatingRef = useRef(false);
+
+  const { data: preferences } = usePreferences();
+  const refreshPreferences = useRefreshPreferences();
+  const upsertActivityReview = useUpsertActivityReview();
+  const upsertAccommodationReview = useUpsertAccommodationReview();
 
   const toggleZone = (i: number) => setExpandedZones((p) => ({ ...p, [i]: !p[i] }));
   const toggleHighlight = (key: string) => setExpandedHighlights((p) => ({ ...p, [key]: !p[key] }));
@@ -61,138 +79,139 @@ const StepSummary = ({ data, onRestart }: StepSummaryProps) => {
     ? Object.values(computedCostBreakdown).reduce((a, b) => a + b, 0)
     : richItinerary?.estimatedTotalCost || 0;
 
-  // Auto-generate itinerary on mount
-  useEffect(() => {
-    if (!richItinerary && !loadingItinerary) {
-      generateItinerary();
+  /**
+   * Grava a viagem no histórico exatamente uma vez. Chamadas concorrentes
+   * esperam o mesmo save em vez de abrir outro.
+   */
+  const saveToHistory = async (): Promise<void> => {
+    if (!user || savedRef.current) return;
+    if (inFlightRef.current) return inFlightRef.current;
+
+    setSaveState('saving');
+    setSaveError(null);
+
+    const attempt = (async () => {
+      let saved: SavedTravelRecord;
+      try {
+        saved = await saveTravelRecord(user.id, data);
+      } catch (error) {
+        setSaveError(getErrorMessage(error, 'Não foi possível salvar sua viagem. Tente novamente.'));
+        setSaveState('error');
+        throw error;
+      }
+
+      // A partir daqui a viagem já está garantida no banco — nenhuma falha
+      // abaixo pode fazer a tela reportar "erro" (e travar o retry: ele só
+      // reexecuta quando savedRef.current ainda é false) para um save que já
+      // aconteceu de verdade.
+      savedRef.current = true;
+      setSaveState('saved');
+      setProtocol(saved);
+      // Recalcula o perfil de gosto com a viagem recém-salva. Falha aqui não
+      // invalida o save: a viagem já está no histórico.
+      refreshPreferences.mutate();
+    })();
+
+    inFlightRef.current = attempt;
+    try {
+      await attempt;
+    } catch {
+      // Já refletido em saveState; o botão "Tentar salvar de novo" reexecuta.
+    } finally {
+      inFlightRef.current = null;
     }
+  };
+
+  const handleGenerateItinerary = async () => {
+    // Sem esta guarda, o double-invoke de efeitos do StrictMode (dev) disparava
+    // duas chamadas concorrentes a uma IA paga; a resposta que resolvesse por
+    // último sobrescrevia a outra silenciosamente. `finally` libera a guarda
+    // ao final, então o botão "Tentar novamente" continua funcionando depois
+    // de um erro.
+    if (!user || generatingRef.current) return;
+    generatingRef.current = true;
+    setLoadingItinerary(true);
+    try {
+      const result = await generateItinerary(data, toItineraryPreferences(preferences));
+      if (result) {
+        setRichItinerary(result);
+      } else {
+        toast({ title: "Não foi possível gerar o roteiro", description: "Tente novamente mais tarde.", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Erro ao gerar roteiro", description: getErrorMessage(error, 'Não foi possível gerar o roteiro. Tente novamente mais tarde.'), variant: "destructive" });
+    } finally {
+      setLoadingItinerary(false);
+      generatingRef.current = false;
+    }
+  };
+
+  // Salva e gera o roteiro em paralelo, de propósito.
+  //
+  // Antes o save só disparava depois que a IA devolvia o roteiro, então uma
+  // falha do n8n fazia o usuário perder a viagem inteira. A viagem já está
+  // completa quando o resumo abre; o roteiro rico é enriquecimento.
+  useEffect(() => {
+    saveToHistory();
+    handleGenerateItinerary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-save to history when itinerary is generated
-  useEffect(() => {
-    if (richItinerary && !saved && !saving && user) {
-      handleSave();
-    }
-  }, [richItinerary]);
-
-  const saveActivityReview = async (activityName: string) => {
-    if (!user) return;
+  const saveActivityReview = (activityName: string) => {
     const score = activityRatings[activityName];
     if (!score) return;
-    setSavingReview(activityName);
-    const { error } = await supabase.from("activity_reviews" as any).upsert(
-      { user_id: user.id, activity_name: activityName, city_id: data.city, score, comment: activityComments[activityName] || null } as any,
-      { onConflict: "user_id,activity_name,city_id" }
+    const spot = data.selectedSpots.find((s) => s.name === activityName);
+    upsertActivityReview.mutate(
+      {
+        activityName,
+        cityId: data.city,
+        score,
+        comment: activityComments[activityName] || null,
+        category: spot?.category ?? null,
+      },
+      {
+        onSuccess: () => toast({ title: "Avaliação salva!" }),
+        onError: (error: Error) =>
+          toast({ title: "Erro ao salvar avaliação", description: getErrorMessage(error, 'Não foi possível salvar sua avaliação. Tente novamente.'), variant: "destructive" }),
+      }
     );
-    setSavingReview(null);
-    if (error) {
-      toast({ title: "Erro ao salvar avaliação", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Avaliação salva! ⭐" });
-    }
   };
 
-  const saveAccommodationReview = async () => {
-    if (!user || !data.accommodation || !accommodationRating) return;
-    setSavingReview("accommodation");
-    const { error } = await supabase.from("accommodation_reviews" as any).upsert(
-      { user_id: user.id, accommodation_name: data.accommodation.name, city_id: data.city, score: accommodationRating, comment: accommodationComment || null } as any,
-      { onConflict: "user_id,accommodation_name,city_id" }
+  const saveAccommodationReview = () => {
+    if (!data.accommodation || !accommodationRating) return;
+    upsertAccommodationReview.mutate(
+      {
+        accommodationName: data.accommodation.name,
+        cityId: data.city,
+        score: accommodationRating,
+        comment: accommodationComment || null,
+      },
+      {
+        onSuccess: () => toast({ title: "Avaliação salva!" }),
+        onError: (error: Error) =>
+          toast({ title: "Erro ao salvar avaliação", description: getErrorMessage(error, 'Não foi possível salvar sua avaliação. Tente novamente.'), variant: "destructive" }),
+      }
     );
-    setSavingReview(null);
-    if (error) {
-      toast({ title: "Erro ao salvar avaliação", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Avaliação salva! ⭐" });
-    }
-  };
-
-  const handleSave = async () => {
-    if (!user) return;
-    setSaving(true);
-    const { error } = await supabase.from("travel_history").insert({
-      user_id: user.id, budget: data.budget, people: data.people, group_type: data.groupType,
-      country: "Brasil", state: `${data.cityName}, PE`,
-      entertainment: data.selectedSpots.map((s) => s.name), food: [],
-      accommodation: data.accommodation?.name || null, month: data.month,
-      transport_to_destination: data.transportToDestination,
-      tourist_spots: data.selectedSpots as any, local_transport: data.localTransport,
-    });
-    setSaving(false);
-    if (error) {
-      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
-    } else {
-      setSaved(true);
-      // Clear sessionStorage on save
-      sessionStorage.removeItem("planner-state");
-      toast({ title: "Viagem salva!", description: "Acesse seu histórico para ver." });
-    }
   };
 
   const handleShare = async () => {
     if (!user) return;
     setSharing(true);
-    const { error: shareError } = await supabase.from("shared_itineraries").insert({
-      user_id: user.id,
-      title: `${data.days} dias em ${data.cityName}`,
-      description: `Roteiro de ${data.days} dias em ${data.cityName}, PE · ${data.adults} adulto${data.adults > 1 ? "s" : ""}${data.children > 0 ? ` + ${data.children} criança${data.children > 1 ? "s" : ""}` : ""} · ${data.rooms} quarto${data.rooms > 1 ? "s" : ""}${data.isCouple ? " · Casal" : ""} · ${data.selectedSpots.length} atividades.`,
-      budget: data.budget, budget_label: data.budgetLabel, people: data.people, days: data.days,
-      group_type: data.groupType, month: data.month, transport_to_destination: data.transportToDestination,
-      city: data.city, city_name: data.cityName, selected_spots: data.selectedSpots as any,
-      accommodation: data.accommodation as any, local_transport: data.localTransport,
-      itinerary_data: richItinerary as any,
-    } as any);
-    if (!saved) {
-      await supabase.from("travel_history").insert({
-        user_id: user.id, budget: data.budget, people: data.people, group_type: data.groupType,
-        country: "Brasil", state: `${data.cityName}, PE`,
-        entertainment: data.selectedSpots.map((s) => s.name), food: [],
-        accommodation: data.accommodation?.name || null, month: data.month,
-        transport_to_destination: data.transportToDestination,
-        tourist_spots: data.selectedSpots as any, local_transport: data.localTransport,
-      });
-      setSaved(true);
+    try {
+      await shareItinerary(user.id, data, richItinerary);
+      // Não deixa uma falha de save derrubar o compartilhamento, mas também não
+      // anuncia "salvo" se o histórico não recebeu.
+      await saveToHistory();
+      setShared(true);
+      toast(
+        savedRef.current
+          ? { title: "Roteiro compartilhado e salvo!", description: "Visível na comunidade e no seu histórico." }
+          : { title: "Roteiro compartilhado!", description: "Visível na comunidade. O salvamento no histórico falhou — dá para tentar de novo abaixo." }
+      );
+    } catch (error) {
+      toast({ title: "Erro ao compartilhar", description: getErrorMessage(error, 'Não foi possível compartilhar o roteiro. Tente novamente.'), variant: "destructive" });
     }
     setSharing(false);
-    // Clear sessionStorage on share
-    sessionStorage.removeItem("planner-state");
-    if (shareError) {
-      toast({ title: "Erro ao compartilhar", description: shareError.message, variant: "destructive" });
-    } else {
-      setShared(true);
-      toast({ title: "Roteiro compartilhado e salvo! 🎉", description: "Visível na comunidade e no seu histórico." });
-    }
-  };
-
-  const generateItinerary = async () => {
-    if (!user) return;
-    setLoadingItinerary(true);
-    try {
-      const { data: result, error } = await supabase.functions.invoke("n8n-webhook", {
-        body: {
-          action: "generate-itinerary",
-          params: {
-            budget: data.budget, budgetLabel: data.budgetLabel, people: data.people,
-            adults: data.adults, children: data.children, isCouple: data.isCouple,
-            rooms: data.rooms, days: data.days, month: data.month,
-            transportToDestination: data.transportToDestination, city: data.cityName,
-            selectedSpots: data.selectedSpots.map((s) => ({ name: s.name, category: s.category, lat: s.lat, lng: s.lng })),
-            accommodation: data.accommodation ? { name: data.accommodation.name, lat: data.accommodation.lat, lng: data.accommodation.lng } : null,
-            localTransport: data.localTransport,
-          },
-        },
-      });
-      if (error) throw error;
-      if (result?.data) {
-        const raw = Array.isArray(result.data) ? result.data[0] : result.data;
-        setRichItinerary(raw as RichItinerary);
-      } else {
-        toast({ title: "Não foi possível gerar o roteiro", description: "Tente novamente mais tarde.", variant: "destructive" });
-      }
-    } catch (e: any) {
-      toast({ title: "Erro ao gerar roteiro", description: e.message, variant: "destructive" });
-    }
-    setLoadingItinerary(false);
   };
 
   const openGoogleMaps = () => {
@@ -214,30 +233,13 @@ const StepSummary = ({ data, onRestart }: StepSummaryProps) => {
     if (!itineraryRef.current) return;
     setExportingPdf(true);
     try {
-      const html2canvas = (await import("html2canvas")).default;
-      const { jsPDF } = await import("jspdf");
-      const element = itineraryRef.current;
-      const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pdfWidth - 20;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 10;
-      pdf.addImage(imgData, "JPEG", 10, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight - 20;
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight + 10;
-        pdf.addPage();
-        pdf.addImage(imgData, "JPEG", 10, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight - 20;
-      }
-      pdf.save(`roteiro-${data.cityName.toLowerCase().replace(/\s/g, "-")}-${data.days}dias.pdf`);
-      toast({ title: "PDF exportado! 📄" });
-    } catch (e: any) {
-      toast({ title: "Erro ao exportar PDF", description: e.message, variant: "destructive" });
+      await exportElementToPdf(
+        itineraryRef.current,
+        `roteiro-${slugifyForFileName(data.cityName)}-${data.days}dias`
+      );
+      toast({ title: "PDF exportado!" });
+    } catch (error) {
+      toast({ title: "Erro ao exportar PDF", description: getErrorMessage(error, 'Não foi possível exportar o PDF. Tente novamente.'), variant: "destructive" });
     }
     setExportingPdf(false);
   };
@@ -263,6 +265,11 @@ const StepSummary = ({ data, onRestart }: StepSummaryProps) => {
         <p className="text-muted-foreground text-base md:text-lg">
           {data.days} dia{data.days > 1 ? "s" : ""} em {data.cityName}, PE
         </p>
+        {protocol && (
+          <p className="text-xs font-bold text-primary tracking-wider" role="status">
+            Protocolo {formatProtocol(protocol.protocolNumber, protocol.createdAt)}
+          </p>
+        )}
       </div>
 
       {/* Summary Card */}
@@ -277,10 +284,8 @@ const StepSummary = ({ data, onRestart }: StepSummaryProps) => {
         )}
         <SummaryRow label="Quartos" value={`${data.rooms}`} />
         <SummaryRow label="Duração" value={`${data.days} dia${data.days > 1 ? "s" : ""}`} />
-        {data.month && data.month > 0 && <SummaryRow label="Mês" value={monthNames[data.month - 1]} />}
-        {data.month === 0 && <SummaryRow label="Mês" value="Ainda não definido" />}
-        {data.transportToDestination && data.transportToDestination !== "undecided" && <SummaryRow label="Transporte ida" value={transportLabel || ""} />}
-        {data.transportToDestination === "undecided" && <SummaryRow label="Transporte ida" value="Ainda não definido" />}
+        <SummaryRow label="Mês" value={monthName(data.month)} />
+        <SummaryRow label="Transporte ida" value={transportLabel(data.transportToDestination)} />
         <SummaryRow label="Destino" value={`${data.cityName}, Pernambuco`} />
 
         {data.selectedSpots.length > 0 && (
@@ -306,7 +311,7 @@ const StepSummary = ({ data, onRestart }: StepSummaryProps) => {
                 ⭐ {data.accommodation.rating} · R$ {data.accommodation.pricePerNight}/noite · Total: R${" "}
                 {(data.accommodation.pricePerNight * data.days).toLocaleString("pt-BR")}
               </span>
-              {data.accommodation.bookingUrl && (
+              {isSafeExternalUrl(data.accommodation.bookingUrl) && (
                 <a
                   href={data.accommodation.bookingUrl}
                   target="_blank"
@@ -327,16 +332,15 @@ const StepSummary = ({ data, onRestart }: StepSummaryProps) => {
                   onChange={(e) => setAccommodationComment(e.target.value)}
                   className="w-full bg-background border border-border rounded-lg p-2 text-sm text-foreground placeholder:text-muted-foreground resize-none h-16"
                 />
-                <Button size="sm" disabled={!accommodationRating || savingReview === "accommodation"} onClick={saveAccommodationReview} className="rounded-full text-xs gap-1">
-                  <MessageSquare size={12} /> {savingReview === "accommodation" ? "Salvando..." : "Enviar avaliação"}
+                <Button size="sm" disabled={!accommodationRating || upsertAccommodationReview.isPending} onClick={saveAccommodationReview} className="rounded-full text-xs gap-1">
+                  <MessageSquare size={12} /> {upsertAccommodationReview.isPending ? "Salvando..." : "Enviar avaliação"}
                 </Button>
               </div>
             )}
           </div>
         )}
 
-        {data.localTransport && data.localTransport !== "undecided" && <SummaryRow label="Transporte local" value={localTransportLabel || ""} />}
-        {data.localTransport === "undecided" && <SummaryRow label="Transporte local" value="Ainda não definido" />}
+        <SummaryRow label="Transporte local" value={localTransportLabel(data.localTransport)} />
         {data.accommodation?.id === "undecided" && <SummaryRow label="Hospedagem" value="Ainda não definida" />}
       </div>
 
@@ -446,8 +450,8 @@ const StepSummary = ({ data, onRestart }: StepSummaryProps) => {
                               <StarRating value={activityRatings[act.title] || 0} onChange={(v) => setActivityRatings((p) => ({ ...p, [act.title]: v }))} size={14} />
                               <div className="flex gap-2">
                                 <input type="text" placeholder="Comentário..." value={activityComments[act.title] || ""} onChange={(e) => setActivityComments((p) => ({ ...p, [act.title]: e.target.value }))} className="flex-1 bg-background border border-border rounded px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground" />
-                                <Button size="sm" variant="ghost" disabled={!activityRatings[act.title] || savingReview === act.title} onClick={() => saveActivityReview(act.title)} className="text-xs h-7 px-2">
-                                  {savingReview === act.title ? "..." : "Avaliar"}
+                                <Button size="sm" variant="ghost" disabled={!activityRatings[act.title] || upsertActivityReview.isPending} onClick={() => saveActivityReview(act.title)} className="text-xs h-7 px-2">
+                                  {upsertActivityReview.isPending ? "..." : "Avaliar"}
                                 </Button>
                               </div>
                             </div>
@@ -567,7 +571,7 @@ const StepSummary = ({ data, onRestart }: StepSummaryProps) => {
         ) : (
           <div className="p-5 rounded-2xl border border-dashed border-primary/40 bg-primary/5 text-center">
             <p className="text-sm text-muted-foreground">Não foi possível gerar o roteiro automaticamente.</p>
-            <Button onClick={generateItinerary} disabled={loadingItinerary} className="mt-3 gradient-pe border-0 rounded-full font-bold gap-2">
+            <Button onClick={handleGenerateItinerary} disabled={loadingItinerary} className="mt-3 gradient-pe border-0 rounded-full font-bold gap-2">
               <CalendarDays size={16} /> Tentar novamente
             </Button>
           </div>
@@ -583,17 +587,30 @@ const StepSummary = ({ data, onRestart }: StepSummaryProps) => {
             <FileDown size={16} /> {exportingPdf ? "Exportando..." : "Exportar PDF"}
           </Button>
         )}
-        {saved && !shared && (
-          <p className="text-xs text-center text-muted-foreground">✅ Salvo automaticamente no histórico</p>
+        {saveState === 'saving' && (
+          <p className="text-xs text-center text-muted-foreground" role="status">Salvando no histórico...</p>
+        )}
+        {saveState === 'saved' && !shared && (
+          <p className="text-xs text-center text-muted-foreground" role="status">Salvo automaticamente no histórico</p>
+        )}
+        {saveState === 'error' && (
+          <div className="p-3 rounded-xl border border-destructive/40 bg-destructive/5 space-y-2" role="alert">
+            <p className="text-xs text-destructive font-semibold">Não foi possível salvar a viagem no histórico.</p>
+            {saveError && <p className="text-[11px] text-muted-foreground break-words">{saveError}</p>}
+            <Button size="sm" onClick={saveToHistory} className="w-full rounded-full text-xs font-bold">
+              Tentar salvar de novo
+            </Button>
+          </div>
         )}
         {!shared && (
           <Button onClick={handleShare} disabled={sharing} variant="outline" className="w-full rounded-full font-bold gap-2">
             <Share2 size={16} /> {sharing ? "Compartilhando..." : "Compartilhar roteiro"}
           </Button>
         )}
-        {(saved || shared) && (
+        {shared && (
           <p className="text-sm text-center text-muted-foreground w-full" role="status">
-            ✅ {shared ? "Compartilhado na comunidade e salvo no histórico" : "Salvo no histórico"}
+            Compartilhado na comunidade
+            {saveState === 'saved' ? ' e salvo no histórico' : ''}
           </p>
         )}
         <Button variant="outline" size="lg" onClick={onRestart} className="w-full rounded-full gap-2">
