@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Archive, LayoutDashboard, ShieldAlert, Users } from 'lucide-react';
 import AppHeader from '@/components/AppHeader';
 import Seo from '@/components/Seo';
@@ -11,6 +12,7 @@ import AdminDeletedTab from '@/components/admin/AdminDeletedTab';
 const Admin = () => {
   const { loading: authLoading } = useRequireAuth();
   const { data: isAdmin, isLoading: verificandoPapel } = useIsAdmin();
+  const [tab, setTab] = useState('overview');
 
   if (authLoading || verificandoPapel) {
     return (
@@ -58,7 +60,7 @@ const Admin = () => {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-10">
-        <Tabs defaultValue="overview">
+        <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="mb-6">
             <TabsTrigger value="overview" className="gap-1.5">
               <LayoutDashboard size={14} /> Visão geral
@@ -72,7 +74,7 @@ const Admin = () => {
           </TabsList>
 
           <TabsContent value="overview">
-            <AdminOverviewTab />
+            <AdminOverviewTab onGoToUsers={() => setTab('users')} />
           </TabsContent>
           <TabsContent value="users">
             <AdminUsersTab />

@@ -35,7 +35,8 @@ export interface FeedItinerary {
   profile: { display_name: string | null; avatar_url: string | null } | null;
 }
 
-async function attachProfiles<T extends { user_id: string }>(
+/** Exportado: reaproveitado pelas listagens administrativas em `admin.ts`. */
+export async function attachProfiles<T extends { user_id: string }>(
   rows: T[],
   columns = 'id, display_name, avatar_url'
 ): Promise<(T & { profile: { display_name: string | null; avatar_url: string | null } | null })[]> {

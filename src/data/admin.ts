@@ -6,7 +6,12 @@ import type {
   AdminActivityDay, AdminOverviewCounts, AdminUserRow, AppRole,
 } from '@/integrations/supabase/database';
 import { throwFunctionError } from './functionsError';
+import { attachProfiles } from './itineraries';
 import { queryKeys } from './queryKeys';
+
+/** Tamanho das listagens administrativas por trás dos cartões de "Atividade
+ * gerada no site" — não precisam de paginação de verdade, só de um teto. */
+const ADMIN_DRILLDOWN_LIMIT = 50;
 
 /** Tabelas com soft delete (migration 20260916100000). */
 export type SoftDeletableEntity =
@@ -267,6 +272,247 @@ export function useSetUserBanned() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers });
+    },
+  });
+}
+
+// ============================================================
+// Detalhamento por trás dos cartões de "Atividade gerada no site" — cada
+// consulta só roda quando o admin abre o respectivo cartão (`enabled`),
+// para não disparar 5 requisições extras toda vez que o painel carrega.
+// ============================================================
+
+/** Busca os títulos de `shared_itineraries` referenciados por likes/comentários. */
+async function attachItineraryTitles<T extends { itinerary_id: string }>(
+  rows: T[]
+): Promise<(T & { itineraryTitle: string | null })[]> {
+  const ids = [...new Set(rows.map((r) => r.itinerary_id))];
+  if (ids.length === 0) return rows.map((r) => ({ ...r, itineraryTitle: null }));
+
+  const { data, error } = await supabase.from('shared_itineraries').select('id, title').in('id', ids);
+  if (error) throw error;
+
+  const byId = new Map((data ?? []).map((i) => [i.id, i.title]));
+  return rows.map((r) => ({ ...r, itineraryTitle: byId.get(r.itinerary_id) ?? null }));
+}
+
+export interface AdminTravelHistoryRow {
+  id: string;
+  displayName: string | null;
+  state: string;
+  budget: number;
+  people: number;
+  days: number | null;
+  protocolNumber: number;
+  createdAt: string;
+}
+
+/** Viagens salvas por qualquer usuário — mesma tabela de `useTravelHistory`,
+ * mas sem o filtro por `user_id` (a política de admin já permite ler todas). */
+export function useAdminTravelHistory(options?: { enabled?: boolean; limit?: number }) {
+  const limit = options?.limit ?? ADMIN_DRILLDOWN_LIMIT;
+  return useQuery({
+    enabled: options?.enabled ?? true,
+    queryKey: queryKeys.adminTravelHistory(limit),
+    queryFn: async (): Promise<AdminTravelHistoryRow[]> => {
+      const { data, error } = await supabase
+        .from('travel_history')
+        .select('id, user_id, state, budget, people, days, protocol_number, created_at')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .range(0, limit - 1);
+      if (error) throw error;
+
+      const rows = await attachProfiles((data ?? []) as unknown as {
+        id: string; user_id: string; state: string; budget: number; people: number;
+        days: number | null; protocol_number: number; created_at: string;
+      }[]);
+      return rows.map((r) => ({
+        id: r.id,
+        displayName: r.profile?.display_name ?? null,
+        state: r.state,
+        budget: r.budget,
+        people: r.people,
+        days: r.days,
+        protocolNumber: r.protocol_number,
+        createdAt: r.created_at,
+      }));
+    },
+  });
+}
+
+export interface AdminSharedItineraryRow {
+  id: string;
+  displayName: string | null;
+  title: string;
+  cityName: string;
+  days: number;
+  likesCount: number;
+  ratingAvg: number;
+  createdAt: string;
+}
+
+export function useAdminSharedItineraries(options?: { enabled?: boolean; limit?: number }) {
+  const limit = options?.limit ?? ADMIN_DRILLDOWN_LIMIT;
+  return useQuery({
+    enabled: options?.enabled ?? true,
+    queryKey: queryKeys.adminSharedItineraries(limit),
+    queryFn: async (): Promise<AdminSharedItineraryRow[]> => {
+      const { data, error } = await supabase
+        .from('shared_itineraries')
+        .select('id, user_id, title, city_name, days, likes_count, rating_avg, created_at')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .range(0, limit - 1);
+      if (error) throw error;
+
+      const rows = await attachProfiles((data ?? []) as unknown as {
+        id: string; user_id: string; title: string; city_name: string; days: number;
+        likes_count: number; rating_avg: number; created_at: string;
+      }[]);
+      return rows.map((r) => ({
+        id: r.id,
+        displayName: r.profile?.display_name ?? null,
+        title: r.title,
+        cityName: r.city_name,
+        days: r.days,
+        likesCount: r.likes_count,
+        ratingAvg: r.rating_avg,
+        createdAt: r.created_at,
+      }));
+    },
+  });
+}
+
+export interface AdminCommentRow {
+  id: string;
+  displayName: string | null;
+  content: string;
+  itineraryTitle: string | null;
+  createdAt: string;
+}
+
+export function useAdminComments(options?: { enabled?: boolean; limit?: number }) {
+  const limit = options?.limit ?? ADMIN_DRILLDOWN_LIMIT;
+  return useQuery({
+    enabled: options?.enabled ?? true,
+    queryKey: queryKeys.adminComments(limit),
+    queryFn: async (): Promise<AdminCommentRow[]> => {
+      const { data, error } = await supabase
+        .from('itinerary_comments')
+        .select('id, user_id, itinerary_id, content, created_at')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .range(0, limit - 1);
+      if (error) throw error;
+
+      const withTitles = await attachItineraryTitles((data ?? []) as unknown as {
+        id: string; user_id: string; itinerary_id: string; content: string; created_at: string;
+      }[]);
+      const rows = await attachProfiles(withTitles);
+      return rows.map((r) => ({
+        id: r.id,
+        displayName: r.profile?.display_name ?? null,
+        content: r.content,
+        itineraryTitle: r.itineraryTitle,
+        createdAt: r.created_at,
+      }));
+    },
+  });
+}
+
+export interface AdminLikeRow {
+  id: string;
+  displayName: string | null;
+  itineraryTitle: string | null;
+  createdAt: string;
+}
+
+export function useAdminLikes(options?: { enabled?: boolean; limit?: number }) {
+  const limit = options?.limit ?? ADMIN_DRILLDOWN_LIMIT;
+  return useQuery({
+    enabled: options?.enabled ?? true,
+    queryKey: queryKeys.adminLikes(limit),
+    queryFn: async (): Promise<AdminLikeRow[]> => {
+      const { data, error } = await supabase
+        .from('itinerary_likes')
+        .select('id, user_id, itinerary_id, created_at')
+        .order('created_at', { ascending: false })
+        .range(0, limit - 1);
+      if (error) throw error;
+
+      const withTitles = await attachItineraryTitles((data ?? []) as unknown as {
+        id: string; user_id: string; itinerary_id: string; created_at: string;
+      }[]);
+      const rows = await attachProfiles(withTitles);
+      return rows.map((r) => ({
+        id: r.id,
+        displayName: r.profile?.display_name ?? null,
+        itineraryTitle: r.itineraryTitle,
+        createdAt: r.created_at,
+      }));
+    },
+  });
+}
+
+export interface AdminReviewRow {
+  id: string;
+  displayName: string | null;
+  kind: 'activity' | 'accommodation';
+  subject: string;
+  cityId: string;
+  score: number;
+  comment: string | null;
+  createdAt: string;
+}
+
+/** Junta `activity_reviews` e `accommodation_reviews` numa lista só, mais
+ * recentes primeiro — são as duas metades de "Avaliações" no cartão. */
+export function useAdminReviews(options?: { enabled?: boolean; limit?: number }) {
+  const limit = options?.limit ?? ADMIN_DRILLDOWN_LIMIT;
+  return useQuery({
+    enabled: options?.enabled ?? true,
+    queryKey: queryKeys.adminReviews(limit),
+    queryFn: async (): Promise<AdminReviewRow[]> => {
+      const [activities, accommodations] = await Promise.all([
+        supabase
+          .from('activity_reviews')
+          .select('id, user_id, activity_name, city_id, score, comment, created_at')
+          .order('created_at', { ascending: false })
+          .range(0, limit - 1),
+        supabase
+          .from('accommodation_reviews')
+          .select('id, user_id, accommodation_name, city_id, score, comment, created_at')
+          .order('created_at', { ascending: false })
+          .range(0, limit - 1),
+      ]);
+      if (activities.error) throw activities.error;
+      if (accommodations.error) throw accommodations.error;
+
+      const combined = [
+        ...(activities.data ?? []).map((r) => ({
+          id: r.id, user_id: r.user_id, kind: 'activity' as const, subject: r.activity_name,
+          city_id: r.city_id, score: r.score, comment: r.comment, created_at: r.created_at,
+        })),
+        ...(accommodations.data ?? []).map((r) => ({
+          id: r.id, user_id: r.user_id, kind: 'accommodation' as const, subject: r.accommodation_name,
+          city_id: r.city_id, score: r.score, comment: r.comment, created_at: r.created_at,
+        })),
+      ]
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .slice(0, limit);
+
+      const rows = await attachProfiles(combined);
+      return rows.map((r) => ({
+        id: r.id,
+        displayName: r.profile?.display_name ?? null,
+        kind: r.kind,
+        subject: r.subject,
+        cityId: r.city_id,
+        score: r.score,
+        comment: r.comment,
+        createdAt: r.created_at,
+      }));
     },
   });
 }

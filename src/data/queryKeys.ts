@@ -35,4 +35,10 @@ export const queryKeys = {
   // `days` com `limit` diferente compartilhariam cache errado sem isso.
   adminTopPages: (days: number, limit: number) => ['admin-top-pages', days, limit] as const,
   adminTopReferrers: (days: number, limit: number) => ['admin-top-referrers', days, limit] as const,
+
+  adminTravelHistory: (limit: number) => ['admin-travel-history', limit] as const,
+  adminSharedItineraries: (limit: number) => ['admin-shared-itineraries', limit] as const,
+  adminComments: (limit: number) => ['admin-comments', limit] as const,
+  adminLikes: (limit: number) => ['admin-likes', limit] as const,
+  adminReviews: (limit: number) => ['admin-reviews', limit] as const,
 } as const;
