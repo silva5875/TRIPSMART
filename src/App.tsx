@@ -35,7 +35,11 @@ const App = () => (
           <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-lg focus:font-bold">
             Pular para o conteúdo principal
           </a>
-          <BrowserRouter>
+          {/* BASE_URL vem do `base` do vite.config.ts: "/TRIPSMART/" no build
+              do GitHub Pages de teste, "/" quando o domínio próprio entrar —
+              sem isso o react-router não reconhece o prefixo do caminho e
+              nenhuma rota bate, caindo sempre no NotFound. */}
+          <BrowserRouter basename={import.meta.env.BASE_URL}>
             <AuthProvider>
               <PageViewTracker />
               <Routes>

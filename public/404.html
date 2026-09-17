@@ -15,10 +15,10 @@
       // Truque padrão da comunidade para SPA em GitHub Pages:
       // https://github.com/rafgraph/spa-github-pages
       //
-      // pathSegmentsToKeep: 0 para domínio próprio na raiz (ex: tripsmart.com/perfil).
-      // Se publicar sem domínio próprio, em usuario.github.io/nome-do-repo/,
-      // troque para 1 — e defina `base: '/nome-do-repo/'` em vite.config.ts.
-      var pathSegmentsToKeep = 0;
+      // 1 porque hoje é servido em silva5875.github.io/TRIPSMART/ (o nome do
+      // repositório entra no caminho). Trocar para 0 — e `base: '/'` em
+      // vite.config.ts — quando o domínio próprio (www.tripsmart.com) entrar.
+      var pathSegmentsToKeep = 1;
 
       var l = window.location;
       l.replace(
