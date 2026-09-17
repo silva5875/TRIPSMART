@@ -31,7 +31,7 @@ export const ENTITY_LABELS: Record<SoftDeletableEntity, string> = {
 };
 
 /** Forma comum para listar itens apagados de tabelas diferentes na mesma tela. */
-export interface DeletedRecord {
+export interface DeletedRecordDTO {
   id: string;
   entity: SoftDeletableEntity;
   title: string;
@@ -68,7 +68,7 @@ export function useDeletedRecords(options?: { enabled?: boolean }) {
   return useQuery({
     enabled: options?.enabled ?? true,
     queryKey: queryKeys.deletedRecords,
-    queryFn: async (): Promise<DeletedRecord[]> => {
+    queryFn: async (): Promise<DeletedRecordDTO[]> => {
       const [viagens, roteiros, comentarios] = await Promise.all([
         supabase
           .from('travel_history')
@@ -91,7 +91,7 @@ export function useDeletedRecords(options?: { enabled?: boolean }) {
       if (roteiros.error) throw roteiros.error;
       if (comentarios.error) throw comentarios.error;
 
-      const registros: DeletedRecord[] = [
+      const registros: DeletedRecordDTO[] = [
         ...(viagens.data ?? []).map((r) => ({
           id: r.id,
           entity: 'travel_history' as const,
@@ -186,13 +186,54 @@ export function useAdminActivitySeries(daysBack = 30) {
 // Usuários
 // ============================================================
 
+/**
+ * DTO de usuário para a tela administrativa — nunca o `AdminUserRow` cru que
+ * `admin_list_users()` devolve. `banned_until` vira `isBanned` aqui, não na
+ * tela: um único lugar decide "banido" e todo consumidor concorda.
+ */
+export interface AdminUserDTO {
+  id: string;
+  email: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+  createdAt: string;
+  lastSignInAt: string | null;
+  isBanned: boolean;
+  roles: AppRole[];
+  tripsCount: number;
+  sharedCount: number;
+  birthDate: string | null;
+  ageYears: number | null;
+  ageMonths: number | null;
+  ageDays: number | null;
+}
+
+function toAdminUserDTO(row: AdminUserRow): AdminUserDTO {
+  return {
+    id: row.id,
+    email: row.email,
+    displayName: row.display_name,
+    avatarUrl: row.avatar_url,
+    createdAt: row.created_at,
+    lastSignInAt: row.last_sign_in_at,
+    isBanned: !!row.banned_until && new Date(row.banned_until) > new Date(),
+    roles: row.roles,
+    tripsCount: row.trips_count,
+    sharedCount: row.shared_count,
+    birthDate: row.birth_date,
+    ageYears: row.age_years,
+    ageMonths: row.age_months,
+    ageDays: row.age_days,
+  };
+}
+
 export function useAdminUsers() {
   return useQuery({
     queryKey: queryKeys.adminUsers,
-    queryFn: async (): Promise<AdminUserRow[]> => {
+    queryFn: async (): Promise<AdminUserDTO[]> => {
       const { data, error } = await supabase.rpc('admin_list_users');
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []).map(toAdminUserDTO);
     },
   });
 }
@@ -301,7 +342,7 @@ async function attachItineraryTitles<T extends { itinerary_id: string }>(
   return rows.map((r) => ({ ...r, itineraryTitle: byId.get(r.itinerary_id) ?? null }));
 }
 
-export interface AdminTravelHistoryRow {
+export interface AdminTravelHistoryDTO {
   id: string;
   displayName: string | null;
   state: string;
@@ -319,7 +360,7 @@ export function useAdminTravelHistory(options?: { enabled?: boolean; limit?: num
   return useQuery({
     enabled: options?.enabled ?? true,
     queryKey: queryKeys.adminTravelHistory(limit),
-    queryFn: async (): Promise<AdminTravelHistoryRow[]> => {
+    queryFn: async (): Promise<AdminTravelHistoryDTO[]> => {
       const { data, error } = await supabase
         .from('travel_history')
         .select('id, user_id, state, budget, people, days, protocol_number, created_at')
@@ -346,7 +387,7 @@ export function useAdminTravelHistory(options?: { enabled?: boolean; limit?: num
   });
 }
 
-export interface AdminSharedItineraryRow {
+export interface AdminSharedItineraryDTO {
   id: string;
   displayName: string | null;
   title: string;
@@ -362,7 +403,7 @@ export function useAdminSharedItineraries(options?: { enabled?: boolean; limit?:
   return useQuery({
     enabled: options?.enabled ?? true,
     queryKey: queryKeys.adminSharedItineraries(limit),
-    queryFn: async (): Promise<AdminSharedItineraryRow[]> => {
+    queryFn: async (): Promise<AdminSharedItineraryDTO[]> => {
       const { data, error } = await supabase
         .from('shared_itineraries')
         .select('id, user_id, title, city_name, days, likes_count, rating_avg, created_at')
@@ -389,7 +430,7 @@ export function useAdminSharedItineraries(options?: { enabled?: boolean; limit?:
   });
 }
 
-export interface AdminCommentRow {
+export interface AdminCommentDTO {
   id: string;
   displayName: string | null;
   content: string;
@@ -402,7 +443,7 @@ export function useAdminComments(options?: { enabled?: boolean; limit?: number }
   return useQuery({
     enabled: options?.enabled ?? true,
     queryKey: queryKeys.adminComments(limit),
-    queryFn: async (): Promise<AdminCommentRow[]> => {
+    queryFn: async (): Promise<AdminCommentDTO[]> => {
       const { data, error } = await supabase
         .from('itinerary_comments')
         .select('id, user_id, itinerary_id, content, created_at')
@@ -426,7 +467,7 @@ export function useAdminComments(options?: { enabled?: boolean; limit?: number }
   });
 }
 
-export interface AdminLikeRow {
+export interface AdminLikeDTO {
   id: string;
   displayName: string | null;
   itineraryTitle: string | null;
@@ -438,7 +479,7 @@ export function useAdminLikes(options?: { enabled?: boolean; limit?: number }) {
   return useQuery({
     enabled: options?.enabled ?? true,
     queryKey: queryKeys.adminLikes(limit),
-    queryFn: async (): Promise<AdminLikeRow[]> => {
+    queryFn: async (): Promise<AdminLikeDTO[]> => {
       const { data, error } = await supabase
         .from('itinerary_likes')
         .select('id, user_id, itinerary_id, created_at')
@@ -460,7 +501,7 @@ export function useAdminLikes(options?: { enabled?: boolean; limit?: number }) {
   });
 }
 
-export interface AdminReviewRow {
+export interface AdminReviewDTO {
   id: string;
   displayName: string | null;
   kind: 'activity' | 'accommodation';
@@ -478,7 +519,7 @@ export function useAdminReviews(options?: { enabled?: boolean; limit?: number })
   return useQuery({
     enabled: options?.enabled ?? true,
     queryKey: queryKeys.adminReviews(limit),
-    queryFn: async (): Promise<AdminReviewRow[]> => {
+    queryFn: async (): Promise<AdminReviewDTO[]> => {
       const [activities, accommodations] = await Promise.all([
         supabase
           .from('activity_reviews')

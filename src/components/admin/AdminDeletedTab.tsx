@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import {
   ENTITY_LABELS, useDeletedRecords, useRestoreRecord,
-  type DeletedRecord, type SoftDeletableEntity,
+  type DeletedRecordDTO, type SoftDeletableEntity,
 } from '@/data/admin';
 import { getErrorMessage } from '@/lib/errors';
 
@@ -29,7 +29,7 @@ const AdminDeletedTab = () => {
     return c;
   }, [registros]);
 
-  const handleRestore = (registro: DeletedRecord) => {
+  const handleRestore = (registro: DeletedRecordDTO) => {
     restaurar.mutate(
       { entity: registro.entity, id: registro.id },
       {

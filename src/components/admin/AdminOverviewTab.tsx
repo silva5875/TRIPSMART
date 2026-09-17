@@ -90,13 +90,13 @@ const AdminOverviewTab = ({ onGoToUsers }: AdminOverviewTabProps) => {
   const newUsersRows = (days: number): DrillDownRow[] => {
     const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
     return usersForNew
-      .filter((u) => new Date(u.created_at).getTime() >= cutoff)
-      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .filter((u) => new Date(u.createdAt).getTime() >= cutoff)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .map((u) => ({
         id: u.id,
-        title: u.display_name || 'Sem nome',
+        title: u.displayName || 'Sem nome',
         subtitle: u.email ?? undefined,
-        meta: `Cadastrado em ${formatDate(u.created_at)}`,
+        meta: `Cadastrado em ${formatDate(u.createdAt)}`,
       }));
   };
 
@@ -140,10 +140,10 @@ const AdminOverviewTab = ({ onGoToUsers }: AdminOverviewTabProps) => {
   const activityDayRows: DrillDownRow[] = activityDay
     ? [
         ...usersForNew
-          .filter((u) => u.created_at.slice(0, 10) === activityDay)
+          .filter((u) => u.createdAt.slice(0, 10) === activityDay)
           .map((u) => ({
             id: `user-${u.id}`,
-            title: u.display_name || 'Sem nome',
+            title: u.displayName || 'Sem nome',
             subtitle: `Novo cadastro · ${u.email ?? ''}`,
           })),
         ...trips

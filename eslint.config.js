@@ -25,7 +25,7 @@ export default tseslint.config(
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
       // A camada de dados mora em src/data/. Componentes consomem os hooks de lá
-      // em vez de falar com o banco direto.
+      // em vez de falar com o banco ou com o formato bruto das tabelas direto.
       "no-restricted-imports": [
         "error",
         {
@@ -34,6 +34,11 @@ export default tseslint.config(
               group: ["**/integrations/supabase/client", "@/integrations/supabase/client"],
               message:
                 "Importe os hooks de @/data/* em vez do client do Supabase. Acesso ao banco só dentro de src/data/.",
+            },
+            {
+              group: ["**/integrations/supabase/database", "@/integrations/supabase/database"],
+              message:
+                "Tipos de linha do banco (Row) não devem sair de src/data/. Exporte um DTO mapeado pelo próprio hook em vez do tipo bruto.",
             },
           ],
         },

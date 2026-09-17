@@ -11,15 +11,14 @@ import {
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAdminUsers, useSetUserBanned, useSetUserRole } from '@/data/admin';
-import type { AdminUserRow } from '@/integrations/supabase/database';
+import { useAdminUsers, useSetUserBanned, useSetUserRole, type AdminUserDTO } from '@/data/admin';
 import { formatBirthDate, formatExactAge, initials } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 
 type PendingAction =
-  | { kind: 'revoke-admin'; user: AdminUserRow }
-  | { kind: 'ban'; user: AdminUserRow }
-  | { kind: 'unban'; user: AdminUserRow };
+  | { kind: 'revoke-admin'; user: AdminUserDTO }
+  | { kind: 'ban'; user: AdminUserDTO }
+  | { kind: 'unban'; user: AdminUserDTO };
 
 const formatDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
@@ -38,34 +37,34 @@ const AdminUsersList = () => {
     const q = search.trim().toLowerCase();
     if (!q) return users;
     return users.filter(
-      (u) => u.display_name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)
+      (u) => u.displayName?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)
     );
   }, [users, search]);
 
   const onError = (error: Error) =>
     toast({ title: 'Erro', description: getErrorMessage(error, 'Não foi possível concluir a ação. Tente novamente.'), variant: 'destructive' });
 
-  const grantAdmin = (u: AdminUserRow) => {
+  const grantAdmin = (u: AdminUserDTO) => {
     setRole.mutate(
       { userId: u.id, role: 'admin', grant: true },
-      { onSuccess: () => toast({ title: 'Admin concedido', description: u.display_name ?? u.email ?? '' }), onError }
+      { onSuccess: () => toast({ title: 'Admin concedido', description: u.displayName ?? u.email ?? '' }), onError }
     );
   };
 
-  const confirmRevoke = (u: AdminUserRow) => {
+  const confirmRevoke = (u: AdminUserDTO) => {
     setRole.mutate(
       { userId: u.id, role: 'admin', grant: false },
-      { onSuccess: () => toast({ title: 'Admin removido', description: u.display_name ?? u.email ?? '' }), onError }
+      { onSuccess: () => toast({ title: 'Admin removido', description: u.displayName ?? u.email ?? '' }), onError }
     );
     setPending(null);
   };
 
-  const confirmBan = (u: AdminUserRow, banned: boolean) => {
+  const confirmBan = (u: AdminUserDTO, banned: boolean) => {
     setBanned.mutate(
       { userId: u.id, banned },
       {
         onSuccess: () =>
-          toast({ title: banned ? 'Usuário inativado' : 'Usuário reativado', description: u.display_name ?? u.email ?? '' }),
+          toast({ title: banned ? 'Usuário inativado' : 'Usuário reativado', description: u.displayName ?? u.email ?? '' }),
         onError,
       }
     );
@@ -108,7 +107,7 @@ const AdminUsersList = () => {
               {filtered.map((u) => {
                 const isAdminUser = u.roles.includes('admin');
                 const isDev = u.roles.includes('dev');
-                const isBanned = !!u.banned_until && new Date(u.banned_until) > new Date();
+                const isBanned = u.isBanned;
                 const isSelf = u.id === me?.id;
 
                 return (
@@ -116,33 +115,33 @@ const AdminUsersList = () => {
                     <TableCell>
                       <div className="flex items-center gap-2.5 min-w-[180px]">
                         <div className="w-8 h-8 rounded-full bg-pe-gold flex items-center justify-center text-xs font-bold text-pe-navy shrink-0">
-                          {initials(u.display_name || u.email)}
+                          {initials(u.displayName || u.email)}
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-bold text-foreground truncate">
-                            {u.display_name || 'Sem nome'}
+                            {u.displayName || 'Sem nome'}
                           </p>
                           <p className="text-xs text-muted-foreground truncate">{u.email}</p>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      <p className="text-sm text-foreground">{formatBirthDate(u.birth_date)}</p>
+                      <p className="text-sm text-foreground">{formatBirthDate(u.birthDate)}</p>
                       <p className="text-xs text-muted-foreground">
-                        {formatExactAge(u.age_years, u.age_months, u.age_days)}
+                        {formatExactAge(u.ageYears, u.ageMonths, u.ageDays)}
                       </p>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                      {formatDate(u.created_at)}
+                      {formatDate(u.createdAt)}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                      {formatDate(u.last_sign_in_at)}
+                      {formatDate(u.lastSignInAt)}
                     </TableCell>
                     <TableCell className="text-sm font-semibold text-foreground tabular-nums">
-                      {u.trips_count}
+                      {u.tripsCount}
                     </TableCell>
                     <TableCell className="text-sm font-semibold text-foreground tabular-nums">
-                      {u.shared_count}
+                      {u.sharedCount}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
@@ -210,7 +209,7 @@ const AdminUsersList = () => {
               <AlertDialogHeader>
                 <AlertDialogTitle>Remover acesso de administrador?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  {pending.user.display_name || pending.user.email} deixará de ter acesso ao painel
+                  {pending.user.displayName || pending.user.email} deixará de ter acesso ao painel
                   administrativo. Isso não afeta a conta do usuário nem os dados dele.
                 </AlertDialogDescription>
               </AlertDialogHeader>
@@ -223,7 +222,7 @@ const AdminUsersList = () => {
           {pending?.kind === 'ban' && (
             <>
               <AlertDialogHeader>
-                <AlertDialogTitle>Inativar {pending.user.display_name || pending.user.email}?</AlertDialogTitle>
+                <AlertDialogTitle>Inativar {pending.user.displayName || pending.user.email}?</AlertDialogTitle>
                 <AlertDialogDescription>
                   A pessoa não conseguirá mais entrar no app — nem por senha, nem pelo Google — até
                   você reativar a conta aqui. Os dados dela não são apagados.
@@ -243,7 +242,7 @@ const AdminUsersList = () => {
           {pending?.kind === 'unban' && (
             <>
               <AlertDialogHeader>
-                <AlertDialogTitle>Reativar {pending.user.display_name || pending.user.email}?</AlertDialogTitle>
+                <AlertDialogTitle>Reativar {pending.user.displayName || pending.user.email}?</AlertDialogTitle>
                 <AlertDialogDescription>
                   A pessoa volta a conseguir entrar no app normalmente.
                 </AlertDialogDescription>
