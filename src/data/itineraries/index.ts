@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toJson } from '@/integrations/supabase/database';
 import type { RichItinerary } from '@/types/richItinerary';
 import type { TouristSpot, TravelState } from '@/types/travel';
-import { queryKeys } from './queryKeys';
+import { queryKeys } from '@/data/queryKeys';
 
 export const FEED_PAGE_SIZE = 20;
 

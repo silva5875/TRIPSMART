@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { TouristSpot, TravelState } from '@/types/travel';
 import { pernambucoCities } from '@/data/mockData';
 import { toJson } from '@/integrations/supabase/database';
-import { queryKeys } from './queryKeys';
+import { queryKeys } from '@/data/queryKeys';
 
 export interface TravelRecord {
   id: string;

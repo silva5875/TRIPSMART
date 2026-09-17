@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toJson } from '@/integrations/supabase/database';
 import type { TravelState } from '@/types/travel';
-import { queryKeys } from './queryKeys';
+import { queryKeys } from '@/data/queryKeys';
 
 export type PlannerStepName =
   | 'budget' | 'month' | 'transport-arrival' | 'city' | 'accommodation' | 'local-transport' | 'summary';

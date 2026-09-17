@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildTravelHistoryInsert, cityIdOf } from './travelHistory';
+import { buildTravelHistoryInsert, cityIdOf } from './index';
 import type { TravelState } from '@/types/travel';
 
 const viagem: TravelState = {

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { queryKeys } from './queryKeys';
+import { queryKeys } from '@/data/queryKeys';
 
 export interface RatingAverage {
   avg: number;

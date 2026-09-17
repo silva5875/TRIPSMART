@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { AccommodationDetail, TouristSpot, TravelState } from '@/types/travel';
 import type { RichItinerary } from '@/types/richItinerary';
-import { throwFunctionError } from './functionsError';
-import { queryKeys } from './queryKeys';
+import { throwFunctionError } from '@/data/functionsError';
+import { queryKeys } from '@/data/queryKeys';
 
 /**
  * Chamadas ao workflow n8n, via edge function `n8n-webhook`.

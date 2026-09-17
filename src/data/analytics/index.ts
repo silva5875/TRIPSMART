@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type {
   AdminDayTrafficDetail, AdminTopPage, AdminTopReferrer, AdminTrafficDay, AdminTrafficOverview,
 } from '@/integrations/supabase/database';
-import { queryKeys } from './queryKeys';
+import { queryKeys } from '@/data/queryKeys';
 
 const VISITOR_ID_KEY = 'tripsmart_visitor_id';
 const SESSION_ID_KEY = 'tripsmart_session_id';

@@ -5,9 +5,9 @@ import { budgetLabel } from '@/lib/format';
 import type {
   AdminActivityDay, AdminOverviewCounts, AdminUserRow, AppRole,
 } from '@/integrations/supabase/database';
-import { throwFunctionError } from './functionsError';
-import { attachProfiles } from './itineraries';
-import { queryKeys } from './queryKeys';
+import { throwFunctionError } from '@/data/functionsError';
+import { attachProfiles } from '@/data/itineraries';
+import { queryKeys } from '@/data/queryKeys';
 
 /**
  * Tamanho das listagens administrativas por trás dos cartões de "Atividade
