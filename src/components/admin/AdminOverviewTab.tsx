@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Bar, BarChart, CartesianGrid, XAxis } from 'recharts';
+import { useMemo, useState } from 'react';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import {
   ChevronRight, ExternalLink, Eye, FileText, Heart, MapPin, MessageSquare, MonitorSmartphone,
   Star, TrendingUp, Users,
@@ -10,14 +10,23 @@ import {
   useAdminDayTraffic, useAdminTopPages, useAdminTopReferrers, useAdminTrafficOverview, useAdminTrafficSeries,
 } from '@/data/analytics';
 import {
-  useAdminActivitySeries, useAdminComments, useAdminLikes, useAdminOverview,
-  useAdminReviews, useAdminSharedItineraries, useAdminTravelHistory, useAdminUsers,
+  useAdminActivitySeries, useAdminComments, useAdminLikes, useAdminOverview, useAdminPlannerFunnel,
+  useAdminReviews, useAdminSharedItineraries, useAdminStuckUsers, useAdminTravelHistory, useAdminUsers,
 } from '@/data/admin';
+import type { PlannerStepName } from '@/data/plannerProgress';
 import { budgetLabel, formatProtocol } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 import AdminDrillDownSheet, { type DrillDownRow } from './AdminDrillDownSheet';
 
 type DrillDown = 'users-new-7d' | 'users-new-30d' | 'trips' | 'shared' | 'comments' | 'likes' | 'reviews' | null;
+
+/** Ordem fixa das etapas do assistente — a mesma de PlannerStepName em
+ * src/data/plannerProgress/index.ts. Nunca inclui 'summary': o Planner apaga
+ * a linha de planner_progress ao concluir, então quem está "travado agora"
+ * nunca está nessa etapa. */
+const STUCK_STEP_ORDER: PlannerStepName[] = [
+  'budget', 'month', 'transport-arrival', 'city', 'accommodation', 'local-transport',
+];
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -31,6 +40,10 @@ const activityChartConfig = {
   signups: { label: 'Cadastros', color: 'hsl(var(--chart-1))' },
   trips: { label: 'Viagens salvas', color: 'hsl(var(--chart-2))' },
   shared: { label: 'Roteiros compartilhados', color: 'hsl(var(--chart-3))' },
+} satisfies ChartConfig;
+
+const funnelChartConfig = {
+  count: { label: 'Usuários que chegaram', color: 'hsl(var(--chart-2))' },
 } satisfies ChartConfig;
 
 const dayLabel = (day: string) =>
@@ -84,8 +97,38 @@ const AdminOverviewTab = ({ onGoToUsers }: AdminOverviewTabProps) => {
   const { data: reviews = [], isLoading: loadingReviews } = useAdminReviews({ enabled: drillDown === 'reviews' });
   const { data: dayTraffic, isLoading: loadingDayTraffic, error: dayTrafficError } = useAdminDayTraffic(trafficDay);
 
+  // Funil do planejador: `funnel` nunca diminui (é histórico); `stuckUsers` é
+  // o instantâneo de agora (planner_progress, nunca inclui 'summary').
+  const { data: funnel = [], isLoading: loadingFunnel } = useAdminPlannerFunnel();
+  const { data: stuckUsers = [], isLoading: loadingStuckUsers } = useAdminStuckUsers();
+  const [stuckStepFilter, setStuckStepFilter] = useState<PlannerStepName | null>(null);
+
   const trafficChartData = trafficSeries.map((d) => ({ ...d, label: dayLabel(d.day) }));
   const activityChartData = activitySeries.map((d) => ({ ...d, label: dayLabel(d.day) }));
+
+  const funnelChartData = funnel.map((f) => ({ label: f.label, count: f.count }));
+
+  const stuckCounts = useMemo(() => {
+    const byStep = new Map<PlannerStepName, { label: string; count: number }>();
+    for (const u of stuckUsers) {
+      const current = byStep.get(u.step);
+      byStep.set(u.step, { label: u.stepLabel, count: (current?.count ?? 0) + 1 });
+    }
+    return STUCK_STEP_ORDER
+      .filter((step) => byStep.has(step))
+      .map((step) => ({ key: step, label: byStep.get(step)!.label, value: byStep.get(step)!.count }));
+  }, [stuckUsers]);
+
+  const stuckUsersRows: DrillDownRow[] = stuckStepFilter
+    ? stuckUsers
+        .filter((u) => u.step === stuckStepFilter)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+        .map((u) => ({
+          id: u.userId,
+          title: u.displayName || 'Sem nome',
+          meta: `Parado desde ${formatDate(u.updatedAt)}`,
+        }))
+    : [];
 
   const newUsersRows = (days: number): DrillDownRow[] => {
     const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
@@ -268,6 +311,55 @@ const AdminOverviewTab = ({ onGoToUsers }: AdminOverviewTabProps) => {
         )}
       </div>
 
+      {/* ===== Funil do planejador ===== */}
+      <div>
+        <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-1">
+          Funil do planejador
+        </h2>
+        <p className="text-xs text-muted-foreground mb-3">
+          De todo mundo que já começou a planejar uma viagem, quantos chegaram em cada etapa — e quem está parado em qual etapa agora.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+        <div className="rounded-2xl border border-border bg-card p-4 md:p-6" style={{ boxShadow: 'var(--card-shadow)' }}>
+          <h3 className="text-sm font-bold text-foreground mb-3">Quantos chegaram em cada etapa</h3>
+          {loadingFunnel ? (
+            <p className="text-sm text-muted-foreground text-center py-12">Carregando...</p>
+          ) : funnel.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-12">Ainda sem dados de funil.</p>
+          ) : (
+            <ChartContainer config={funnelChartConfig} className="h-[280px] w-full">
+              <BarChart data={funnelChartData} layout="vertical" margin={{ left: 8 }}>
+                <CartesianGrid horizontal={false} />
+                <XAxis type="number" hide />
+                <YAxis type="category" dataKey="label" width={110} tickLine={false} axisLine={false} fontSize={12} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="count" fill="var(--color-count)" radius={3} />
+              </BarChart>
+            </ChartContainer>
+          )}
+        </div>
+        <RankingCard
+          icon={<Users size={16} />}
+          title="Travados agora, por etapa"
+          loading={loadingStuckUsers}
+          empty="Nenhum planejamento em andamento agora."
+          rows={stuckCounts}
+          onRowClick={(step) => setStuckStepFilter(step as PlannerStepName)}
+        />
+      </div>
+
+      <AdminDrillDownSheet
+        open={!!stuckStepFilter}
+        onOpenChange={(open) => !open && setStuckStepFilter(null)}
+        title={`Travados em "${stuckCounts.find((c) => c.key === stuckStepFilter)?.label ?? stuckStepFilter}"`}
+        description="Quem tem um planejamento em andamento parado nesta etapa."
+        loading={loadingStuckUsers}
+        empty="Ninguém travado nesta etapa agora."
+        rows={stuckUsersRows}
+      />
+
       <AdminDrillDownSheet
         open={drillDown === 'trips'}
         onOpenChange={(open) => !open && setDrillDown(null)}
@@ -410,13 +502,16 @@ const StatCard = ({
 );
 
 const RankingCard = ({
-  icon, title, rows, loading, empty,
+  icon, title, rows, loading, empty, onRowClick,
 }: {
   icon: React.ReactNode;
   title: string;
   rows: { key: string; label: string; value: number }[];
   loading: boolean;
   empty: string;
+  /** Quando informado, cada linha vira um botão — usado por "Travados agora"
+   * pra abrir quem exatamente está parado naquela etapa. */
+  onRowClick?: (key: string) => void;
 }) => (
   <div className="rounded-2xl border border-border bg-card p-4 md:p-5" style={{ boxShadow: 'var(--card-shadow)' }}>
     <h3 className="text-sm font-bold text-foreground flex items-center gap-2 mb-3">
@@ -428,14 +523,30 @@ const RankingCard = ({
       <p className="text-sm text-muted-foreground py-4">{empty}</p>
     ) : (
       <div className="space-y-2">
-        {rows.map((r) => (
-          <div key={r.key} className="flex items-center justify-between gap-3 text-sm">
-            <span className="text-foreground truncate">{r.label}</span>
-            <span className="font-bold text-muted-foreground tabular-nums shrink-0">
-              {r.value.toLocaleString('pt-BR')}
-            </span>
-          </div>
-        ))}
+        {rows.map((r) => {
+          const content = (
+            <>
+              <span className="text-foreground truncate group-hover:text-primary">{r.label}</span>
+              <span className="font-bold text-muted-foreground tabular-nums shrink-0">
+                {r.value.toLocaleString('pt-BR')}
+              </span>
+            </>
+          );
+          return onRowClick ? (
+            <button
+              key={r.key}
+              type="button"
+              onClick={() => onRowClick(r.key)}
+              className="flex items-center justify-between gap-3 text-sm w-full text-left group"
+            >
+              {content}
+            </button>
+          ) : (
+            <div key={r.key} className="flex items-center justify-between gap-3 text-sm">
+              {content}
+            </div>
+          );
+        })}
       </div>
     )}
   </div>

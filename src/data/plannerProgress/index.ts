@@ -63,3 +63,28 @@ export function useClearPlannerProgress() {
     },
   });
 }
+
+/**
+ * Alimenta o funil de abandono (painel admin) — registra, uma única vez por
+ * usuário, a primeira vez que ele alcança cada etapa. `ignoreDuplicates`
+ * cobre o resto: religar a mesma etapa não conta de novo.
+ *
+ * Puramente analítico: uma falha aqui nunca pode interromper o assistente,
+ * mesmo padrão de trackPageView em src/data/analytics/index.ts.
+ */
+export function useRecordPlannerStepEvent() {
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (step: PlannerStepName) => {
+      if (!user) return;
+      try {
+        const { error } = await supabase
+          .from('planner_step_events')
+          .upsert({ user_id: user.id, step }, { onConflict: 'user_id,step', ignoreDuplicates: true });
+        if (error) throw error;
+      } catch (error) {
+        console.warn('[planner-funnel] falha ao registrar etapa', error);
+      }
+    },
+  });
+}

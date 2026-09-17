@@ -81,6 +81,11 @@ type UserRolesTable = {
 /** Migration 20260916110000, com nascimento/idade adicionados em 20260916150000. */
 export interface AdminUserRow {
   id: string;
+  /** Migration 20260917150000 — numeração sequencial (usuário #1, #2...),
+   * nunca o UUID. `null` só é possível pra uma conta criada entre o `INSERT
+   * ... auth.users` e o gatilho rodar — não deve durar mais que a mesma
+   * transação. */
+  user_number: number | null;
   email: string | null;
   display_name: string | null;
   avatar_url: string | null;
@@ -230,6 +235,30 @@ type PlannerProgressTable = {
   Relationships: [];
 };
 
+/**
+ * Migration 20260917140000. Log de eventos, nunca apagado — a base do funil
+ * de abandono. `PRIMARY KEY (user_id, step)`: "alcançou" é por usuário, não
+ * por tentativa.
+ */
+type PlannerStepEventsTable = {
+  Row: { user_id: string; step: string; first_reached_at: string };
+  Insert: { user_id: string; step: string; first_reached_at?: string };
+  Update: { user_id?: string; step?: string; first_reached_at?: string };
+  Relationships: [];
+};
+
+export interface AdminPlannerFunnelStep {
+  step: string;
+  step_order: number;
+  users_reached: number;
+}
+
+export interface AdminPlannerProgressDetailRow {
+  user_id: string;
+  step: string;
+  updated_at: string;
+}
+
 export type Database = {
   __InternalSupabase: GeneratedDatabase['__InternalSupabase'];
   public: {
@@ -249,6 +278,7 @@ export type Database = {
       page_views: PageViewsTable;
       dtnascimento: DtnascimentoTable;
       planner_progress: PlannerProgressTable;
+      planner_step_events: PlannerStepEventsTable;
     };
     Views: GeneratedPublic['Views'];
     Functions: {
@@ -303,6 +333,14 @@ export type Database = {
       admin_day_traffic_detail: {
         Args: { target_day: string };
         Returns: AdminDayTrafficDetail[];
+      };
+      admin_planner_funnel: {
+        Args: Record<string, never>;
+        Returns: AdminPlannerFunnelStep[];
+      };
+      admin_planner_progress_detail: {
+        Args: Record<string, never>;
+        Returns: AdminPlannerProgressDetailRow[];
       };
     };
     Enums: GeneratedPublic['Enums'];

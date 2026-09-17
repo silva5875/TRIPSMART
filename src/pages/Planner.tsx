@@ -14,7 +14,10 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Navigation } from "lucide-react";
 import type { TravelState, TouristSpot, AccommodationDetail } from "@/types/travel";
 import Seo from "@/components/Seo";
-import { usePlannerProgress, useSavePlannerProgress, useClearPlannerProgress, type PlannerStepName } from "@/data/plannerProgress";
+import {
+  usePlannerProgress, useSavePlannerProgress, useClearPlannerProgress, useRecordPlannerStepEvent,
+  type PlannerStepName,
+} from "@/data/plannerProgress";
 
 type StepName = PlannerStepName;
 
@@ -39,7 +42,9 @@ const Planner = () => {
   const { data: savedProgress, isError: progressError } = usePlannerProgress();
   const saveProgress = useSavePlannerProgress();
   const clearProgress = useClearPlannerProgress();
+  const recordStepEvent = useRecordPlannerStepEvent();
   const restoredRef = useRef(false);
+  const recordedStepsRef = useRef<Set<StepName>>(new Set());
 
   // Restaura o rascunho uma única vez, assim que a consulta resolve (dado ou
   // erro). `savedProgress === undefined` significa "ainda carregando" — só aí
@@ -68,6 +73,16 @@ const Planner = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, data, ready]);
+
+  // Funil de abandono (painel admin): registra a etapa uma única vez, mesmo
+  // que `data` mude várias vezes dentro dela — por isso um efeito separado
+  // do de cima, sem `data` nas dependências.
+  useEffect(() => {
+    if (!ready || recordedStepsRef.current.has(step)) return;
+    recordedStepsRef.current.add(step);
+    recordStepEvent.mutate(step);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, ready]);
 
   useEffect(() => { const c = searchParams.get('city'); if (c) setPreSelectedCity(c); }, [searchParams]);
 

@@ -1683,3 +1683,614 @@ $$;
 GRANT EXECUTE ON FUNCTION public.admin_day_traffic_detail(DATE) TO authenticated;
 
 
+-- ============================================================
+-- Migration: 20260917140000_planner_funnel.sql
+-- ============================================================
+
+-- Funil de abandono do assistente de planejamento.
+--
+-- `planner_progress` (migration 20260917120000) não serve de base pra isto:
+-- ela é sobrescrita a cada etapa e APAGADA quando a viagem é concluída ou
+-- reiniciada — ótima para "retomar de onde parei", inútil para "quantas
+-- pessoas já chegaram em cada etapa alguma vez". Este log é o oposto: nunca
+-- apaga nada.
+--
+-- Granularidade por USUÁRIO, não por tentativa: se a mesma pessoa planeja
+-- duas viagens em momentos diferentes, a segunda vez que ela alcança
+-- "budget" não conta de novo. A pergunta que este funil responde é "quantas
+-- pessoas distintas já chegaram em cada etapa", não "quantas vezes".
+
+CREATE TABLE public.planner_step_events (
+  user_id          UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  step             TEXT NOT NULL,
+  first_reached_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, step)
+);
+
+ALTER TABLE public.planner_step_events ENABLE ROW LEVEL SECURITY;
+
+-- Sem política de SELECT para o próprio usuário: ninguém no app precisa ler
+-- isto de volta, só o admin, e só através das funções abaixo.
+CREATE POLICY "Users record own step events"
+  ON public.planner_step_events FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE INDEX idx_planner_step_events_step ON public.planner_step_events (step);
+
+-- ============================================================
+-- Funções administrativas
+-- ============================================================
+--
+-- `step_order` não vem de nenhuma coluna — a ordem das etapas é a mesma
+-- sequência fixa de PlannerStepName (src/data/plannerProgress/index.ts) — se
+-- aquela lista de etapas mudar um dia, este CASE precisa acompanhar.
+
+CREATE OR REPLACE FUNCTION public.admin_planner_funnel()
+RETURNS TABLE (step TEXT, step_order INT, users_reached BIGINT)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'not authorized';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    e.step,
+    CASE e.step
+      WHEN 'budget' THEN 1
+      WHEN 'month' THEN 2
+      WHEN 'transport-arrival' THEN 3
+      WHEN 'city' THEN 4
+      WHEN 'accommodation' THEN 5
+      WHEN 'local-transport' THEN 6
+      WHEN 'summary' THEN 7
+      ELSE 99
+    END AS step_order,
+    count(DISTINCT e.user_id) AS users_reached
+  FROM public.planner_step_events e
+  GROUP BY e.step
+  ORDER BY step_order;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.admin_planner_funnel() TO authenticated;
+
+-- Detalhe por trás de "travados agora": quem está em planner_progress neste
+-- exato momento (nunca inclui 'summary' — o Planner apaga a linha ao chegar
+-- lá) e em qual etapa. A tela agrupa por etapa para o cartão de contagem e
+-- filtra por etapa para o "ver quem" de cada uma.
+CREATE OR REPLACE FUNCTION public.admin_planner_progress_detail()
+RETURNS TABLE (user_id UUID, step TEXT, updated_at TIMESTAMPTZ)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'not authorized';
+  END IF;
+
+  RETURN QUERY
+  SELECT p.user_id, p.step, p.updated_at
+  FROM public.planner_progress p
+  ORDER BY p.updated_at DESC;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.admin_planner_progress_detail() TO authenticated;
+
+
+-- ============================================================
+-- Migration: 20260917141000_fix_planner_step_events_insert_policy.sql
+-- ============================================================
+
+-- Corrige a política de INSERT de planner_step_events.
+--
+-- Testado direto contra o projeto em produção: um usuário LOGADO inserindo
+-- a PRÓPRIA linha (user_id = auth.uid(), exatamente o que WITH CHECK exige)
+-- foi rejeitado com "new row violates row-level security policy" — mesmo
+-- token, mesmo request, funcionando sem problema no INSERT equivalente em
+-- planner_progress (migration 20260917120000). Não é o mesmo mistério de
+-- 20260916130000 (aquele era sobre o role `anon`; aqui o usuário está
+-- autenticado) — a causa mais provável é a CREATE POLICY original da
+-- migration 20260917140000 não ter sido de fato aplicada.
+--
+-- Em vez de tentar diagnosticar à distância, recria a política do zero.
+
+DROP POLICY IF EXISTS "Users record own step events" ON public.planner_step_events;
+
+CREATE POLICY "Users record own step events"
+  ON public.planner_step_events FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+
+-- ============================================================
+-- Migration: 20260917142000_planner_step_events_select_policy.sql
+-- ============================================================
+
+-- Causa raiz de verdade do 42501 em planner_step_events (a correção anterior,
+-- 20260917141000, recriou a política de INSERT à toa — ela já estava certa).
+--
+-- Confirmado testando ao vivo: um INSERT simples nesta tabela funciona (201).
+-- O MESMO insert com `ON CONFLICT (user_id, step) DO NOTHING` — exatamente o
+-- que `useRecordPlannerStepEvent` manda via `.upsert(..., {ignoreDuplicates:
+-- true})` — falha com "row-level security policy", mesmo inserindo a
+-- própria linha. Resolver um ON CONFLICT exige que o Postgres consiga LER a
+-- linha que já existe (pra saber que é um conflito), e isso é regido pela
+-- política de SELECT — que esta tabela nunca teve, de propósito ("ninguém
+-- precisa ler isto de volta").
+--
+-- `planner_progress` nunca teve esse problema por acidente: a política dela
+-- é `FOR ALL`, que já inclui SELECT.
+
+CREATE POLICY "Users can read own step events"
+  ON public.planner_step_events FOR SELECT TO authenticated
+  USING (auth.uid() = user_id);
+
+
+-- ============================================================
+-- Migration: 20260917150000_user_sequence.sql
+-- ============================================================
+
+-- Numeração sequencial dos usuários (usuário #1, #2, #3...), pro painel
+-- administrativo. `auth.users.id` é UUID — ótimo pra segurança, péssimo pra
+-- um número que um humano reconheça de cabeça. Esta tabela é só isso: uma
+-- ponte entre o UUID de verdade e um inteiro que só cresce.
+--
+-- Sem nenhuma política de RLS de propósito, mesmo com RLS ligado: ninguém
+-- lê ou escreve isto direto. Só dois caminhos tocam a tabela, os dois
+-- SECURITY DEFINER (ignoram RLS por natureza) — o gatilho de cadastro
+-- (grava) e admin_list_users() (lê, abaixo).
+
+CREATE TABLE public.user_sequence (
+  id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id    UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.user_sequence ENABLE ROW LEVEL SECURITY;
+
+-- Preenche quem já tinha conta antes desta tabela existir — na ordem de
+-- cadastro, pra quem já é usuário há mais tempo ficar com o número menor.
+INSERT INTO public.user_sequence (user_id)
+SELECT id FROM auth.users
+ORDER BY created_at ASC
+ON CONFLICT (user_id) DO NOTHING;
+
+-- handle_new_user() passa a numerar também. CREATE OR REPLACE porque a
+-- função já existe (migration 20260916150000) — só adiciona um INSERT a
+-- mais ao que já tinha.
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  meta_birth_date DATE;
+BEGIN
+  INSERT INTO public.profiles (id, display_name)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1))
+  );
+
+  INSERT INTO public.user_preferences (user_id)
+  VALUES (NEW.id)
+  ON CONFLICT (user_id) DO NOTHING;
+
+  INSERT INTO public.user_sequence (user_id)
+  VALUES (NEW.id)
+  ON CONFLICT (user_id) DO NOTHING;
+
+  BEGIN
+    meta_birth_date := (NEW.raw_user_meta_data->>'birth_date')::date;
+  EXCEPTION WHEN OTHERS THEN
+    meta_birth_date := NULL;
+  END;
+
+  IF meta_birth_date IS NOT NULL
+     AND meta_birth_date <= (CURRENT_DATE - INTERVAL '18 years')::date THEN
+    INSERT INTO public.dtnascimento (user_id, birth_date)
+    VALUES (NEW.id, meta_birth_date)
+    ON CONFLICT (user_id) DO NOTHING;
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+-- ============================================================
+-- admin_list_users() passa a incluir o número sequencial.
+--
+-- DROP + CREATE (não CREATE OR REPLACE): mudar as colunas de saída de uma
+-- função existente exige recriá-la — mesmo motivo da migration 20260916150000.
+-- ============================================================
+
+DROP FUNCTION IF EXISTS public.admin_list_users();
+
+CREATE FUNCTION public.admin_list_users()
+RETURNS TABLE (
+  id              UUID,
+  user_number     BIGINT,
+  email           TEXT,
+  display_name    TEXT,
+  avatar_url      TEXT,
+  created_at      TIMESTAMPTZ,
+  last_sign_in_at TIMESTAMPTZ,
+  banned_until    TIMESTAMPTZ,
+  roles           public.app_role[],
+  trips_count     BIGINT,
+  shared_count    BIGINT,
+  birth_date      DATE,
+  age_years       INT,
+  age_months      INT,
+  age_days        INT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'not authorized';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    u.id,
+    us.id AS user_number,
+    u.email::text,
+    p.display_name,
+    p.avatar_url,
+    u.created_at,
+    u.last_sign_in_at,
+    u.banned_until,
+    COALESCE(
+      (SELECT array_agg(ur.role) FROM public.user_roles ur WHERE ur.user_id = u.id),
+      ARRAY[]::public.app_role[]
+    ) AS roles,
+    (SELECT count(*) FROM public.travel_history th WHERE th.user_id = u.id AND th.deleted_at IS NULL) AS trips_count,
+    (SELECT count(*) FROM public.shared_itineraries si WHERE si.user_id = u.id AND si.deleted_at IS NULL) AS shared_count,
+    d.birth_date,
+    EXTRACT(YEAR FROM age(CURRENT_DATE, d.birth_date))::int AS age_years,
+    EXTRACT(MONTH FROM age(CURRENT_DATE, d.birth_date))::int AS age_months,
+    EXTRACT(DAY FROM age(CURRENT_DATE, d.birth_date))::int AS age_days
+  FROM auth.users u
+  LEFT JOIN public.profiles p ON p.id = u.id
+  LEFT JOIN public.dtnascimento d ON d.user_id = u.id
+  LEFT JOIN public.user_sequence us ON us.user_id = u.id
+  ORDER BY u.created_at DESC;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.admin_list_users() TO authenticated;
+
+
+-- ============================================================
+-- Migration: 20260917160000_user_registry_view.sql
+-- ============================================================
+
+-- `user_sequence` (migration 20260917150000) era só a ponte id↔user_id.
+-- Agora "SELECT * FROM user_sequence" deve devolver a pessoa inteira numa
+-- linha só — nome, nascimento, email, quando foi desativada (se foi),
+-- quantos logins já fez e a data do último. Uma tabela e uma view não podem
+-- ter o mesmo nome, então a tabela original vira `user_registry` (guarda o
+-- que só existe aqui: o número sequencial, a contagem de login, a data de
+-- desativação) e `user_sequence` passa a ser a VIEW de leitura.
+--
+-- De propósito sem GRANT para `authenticated`/`anon`: como a view lê
+-- auth.users direto (email, last_sign_in_at), ela só deve ser consultada por
+-- quem já tem acesso a esse schema — o dono do projeto, pelo SQL Editor.
+-- Não é uma rota nova de leitura para o app: o cliente publishable continua
+-- sem enxergar nada disto, do mesmo jeito que nunca enxergou a tabela.
+
+ALTER TABLE public.user_sequence RENAME TO user_registry;
+
+ALTER TABLE public.user_registry
+  ADD COLUMN IF NOT EXISTS login_count BIGINT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS deactivated_at TIMESTAMP WITH TIME ZONE;
+
+-- ============================================================
+-- Ajusta as duas funções que já apontavam para o nome antigo da tabela.
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  meta_birth_date DATE;
+BEGIN
+  INSERT INTO public.profiles (id, display_name)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1))
+  );
+
+  INSERT INTO public.user_preferences (user_id)
+  VALUES (NEW.id)
+  ON CONFLICT (user_id) DO NOTHING;
+
+  INSERT INTO public.user_registry (user_id)
+  VALUES (NEW.id)
+  ON CONFLICT (user_id) DO NOTHING;
+
+  BEGIN
+    meta_birth_date := (NEW.raw_user_meta_data->>'birth_date')::date;
+  EXCEPTION WHEN OTHERS THEN
+    meta_birth_date := NULL;
+  END;
+
+  IF meta_birth_date IS NOT NULL
+     AND meta_birth_date <= (CURRENT_DATE - INTERVAL '18 years')::date THEN
+    INSERT INTO public.dtnascimento (user_id, birth_date)
+    VALUES (NEW.id, meta_birth_date)
+    ON CONFLICT (user_id) DO NOTHING;
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+DROP FUNCTION IF EXISTS public.admin_list_users();
+
+CREATE FUNCTION public.admin_list_users()
+RETURNS TABLE (
+  id              UUID,
+  user_number     BIGINT,
+  email           TEXT,
+  display_name    TEXT,
+  avatar_url      TEXT,
+  created_at      TIMESTAMPTZ,
+  last_sign_in_at TIMESTAMPTZ,
+  banned_until    TIMESTAMPTZ,
+  roles           public.app_role[],
+  trips_count     BIGINT,
+  shared_count    BIGINT,
+  birth_date      DATE,
+  age_years       INT,
+  age_months      INT,
+  age_days        INT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'not authorized';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    u.id,
+    us.id AS user_number,
+    u.email::text,
+    p.display_name,
+    p.avatar_url,
+    u.created_at,
+    u.last_sign_in_at,
+    u.banned_until,
+    COALESCE(
+      (SELECT array_agg(ur.role) FROM public.user_roles ur WHERE ur.user_id = u.id),
+      ARRAY[]::public.app_role[]
+    ) AS roles,
+    (SELECT count(*) FROM public.travel_history th WHERE th.user_id = u.id AND th.deleted_at IS NULL) AS trips_count,
+    (SELECT count(*) FROM public.shared_itineraries si WHERE si.user_id = u.id AND si.deleted_at IS NULL) AS shared_count,
+    d.birth_date,
+    EXTRACT(YEAR FROM age(CURRENT_DATE, d.birth_date))::int AS age_years,
+    EXTRACT(MONTH FROM age(CURRENT_DATE, d.birth_date))::int AS age_months,
+    EXTRACT(DAY FROM age(CURRENT_DATE, d.birth_date))::int AS age_days
+  FROM auth.users u
+  LEFT JOIN public.profiles p ON p.id = u.id
+  LEFT JOIN public.dtnascimento d ON d.user_id = u.id
+  LEFT JOIN public.user_registry us ON us.user_id = u.id
+  ORDER BY u.created_at DESC;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.admin_list_users() TO authenticated;
+
+-- ============================================================
+-- Contagem de login. auth.users.last_sign_in_at já é atualizado pelo
+-- GoTrue (o serviço de auth do Supabase) a cada login de verdade — não em
+-- cada refresh de token, só quando alguém entra de fato. Um gatilho nessa
+-- mudança específica conta sem duplicar nenhuma lógica de autenticação.
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION public.handle_user_sign_in()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+BEGIN
+  IF NEW.last_sign_in_at IS DISTINCT FROM OLD.last_sign_in_at THEN
+    UPDATE public.user_registry
+    SET login_count = login_count + 1
+    WHERE user_id = NEW.id;
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS on_auth_user_sign_in ON auth.users;
+
+CREATE TRIGGER on_auth_user_sign_in
+  AFTER UPDATE ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_user_sign_in();
+
+-- ============================================================
+-- admin_set_user_banned() passa a registrar QUANDO desativou, não só que
+-- está desativado — banned_until vira "banido para sempre" (now + 100
+-- anos), o que nunca disse quando a desativação aconteceu.
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION public.admin_set_user_banned(target_user_id UUID, banned BOOLEAN)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'not authorized';
+  END IF;
+
+  IF banned AND target_user_id = auth.uid() THEN
+    RAISE EXCEPTION 'you cannot deactivate your own account';
+  END IF;
+
+  UPDATE auth.users
+  SET banned_until = CASE WHEN banned THEN (now() + interval '100 years') ELSE NULL END
+  WHERE id = target_user_id;
+
+  UPDATE public.user_registry
+  SET deactivated_at = CASE WHEN banned THEN now() ELSE NULL END
+  WHERE user_id = target_user_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.admin_set_user_banned(UUID, BOOLEAN) TO authenticated;
+
+-- ============================================================
+-- A view em si — "SELECT * FROM user_sequence" a partir de agora.
+-- ============================================================
+
+CREATE VIEW public.user_sequence AS
+SELECT
+  r.id,
+  r.user_id,
+  p.display_name  AS nome_completo,
+  d.birth_date    AS dtnascimento,
+  u.email,
+  r.created_at,
+  r.deactivated_at,
+  r.login_count,
+  u.last_sign_in_at AS ultimo_login
+FROM public.user_registry r
+JOIN auth.users u ON u.id = r.user_id
+LEFT JOIN public.profiles p ON p.id = r.user_id
+LEFT JOIN public.dtnascimento d ON d.user_id = r.user_id
+ORDER BY r.id;
+
+
+-- ============================================================
+-- Migration: 20260917161000_user_sequence_extra_fields.sql
+-- ============================================================
+
+-- Mais colunas na view user_sequence (migration 20260917160000) e a
+-- capacidade de desativar por UPDATE direto nela.
+
+DROP VIEW IF EXISTS public.user_sequence;
+
+CREATE VIEW public.user_sequence AS
+SELECT
+  r.id,
+  r.user_id,
+  p.display_name  AS nome_completo,
+  d.birth_date    AS dtnascimento,
+  u.email,
+  r.created_at,
+  r.deactivated_at,
+  r.login_count,
+  u.last_sign_in_at AS ultimo_login,
+  CASE WHEN EXISTS (
+    SELECT 1 FROM public.user_roles ur WHERE ur.user_id = r.user_id AND ur.role = 'admin'
+  ) THEN 'Admin' ELSE 'Cliente' END AS permissao,
+  (
+    SELECT count(*) FROM public.shared_itineraries si
+    WHERE si.user_id = r.user_id AND si.deleted_at IS NULL
+  ) AS qtd_publicacoes,
+  (
+    SELECT count(*) FROM public.shared_itineraries si
+    WHERE si.user_id = r.user_id AND si.deleted_at IS NULL
+  ) > 0 AS publicou_comunidade,
+  (
+    SELECT count(*) FROM public.travel_history th
+    WHERE th.user_id = r.user_id AND th.deleted_at IS NULL
+  ) AS roteiros_gerados
+FROM public.user_registry r
+JOIN auth.users u ON u.id = r.user_id
+LEFT JOIN public.profiles p ON p.id = r.user_id
+LEFT JOIN public.dtnascimento d ON d.user_id = r.user_id
+ORDER BY r.id;
+
+-- ============================================================
+-- Desativar por UPDATE direto na view.
+--
+-- Uma view sobre várias tabelas não é atualizável sozinha — precisa de um
+-- gatilho INSTEAD OF que traduza o UPDATE pedido em operações nas tabelas de
+-- verdade. Só a mudança em `deactivated_at` tem efeito: as outras colunas
+-- (nome, email, contagens...) são todas calculadas, não fazem sentido
+-- gravar de volta.
+--
+--   UPDATE user_sequence SET deactivated_at = now() WHERE user_id = '...'; -- desativa
+--   UPDATE user_sequence SET deactivated_at = NULL  WHERE user_id = '...'; -- reativa
+--
+-- Mesmo efeito de admin_set_user_banned() (banned_until = agora + 100 anos,
+-- ou NULL) — só que disparado direto pelo SQL Editor, sem passar pelo app.
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION public.user_sequence_update()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+BEGIN
+  IF NEW.deactivated_at IS DISTINCT FROM OLD.deactivated_at THEN
+    UPDATE auth.users
+    SET banned_until = CASE WHEN NEW.deactivated_at IS NOT NULL THEN (now() + interval '100 years') ELSE NULL END
+    WHERE id = OLD.user_id;
+
+    UPDATE public.user_registry
+    SET deactivated_at = NEW.deactivated_at
+    WHERE user_id = OLD.user_id;
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS user_sequence_update_trigger ON public.user_sequence;
+
+CREATE TRIGGER user_sequence_update_trigger
+  INSTEAD OF UPDATE ON public.user_sequence
+  FOR EACH ROW EXECUTE FUNCTION public.user_sequence_update();
+
+
+-- ============================================================
+-- Migration: 20260917162000_lock_down_user_sequence_view.sql
+-- ============================================================
+
+-- CORREÇÃO DE SEGURANÇA — urgente.
+--
+-- Testado direto contra o projeto em produção: `user_sequence` estava
+-- legível por QUALQUER UM, sem nem precisar estar logado — só com a chave
+-- publicável, que fica no bundle do navegador. Email, data de nascimento,
+-- se a conta está desativada, tudo isso vazando.
+--
+-- Causa: uma VIEW executa com o privilégio de quem a CRIOU para acessar as
+-- tabelas por trás dela — por isso ela lia auth.users/profiles/dtnascimento
+-- sem passar pelo RLS dessas tabelas. E o projeto tem um privilégio padrão
+-- de SELECT em novas tabelas/views para anon/authenticated (a razão de
+-- várias tabelas deste app funcionarem só com RLS, sem GRANT explícito) —
+-- que uma view não tem como recusar sozinha, já que ela não tem RLS
+-- própria. A intenção original ("view só pro SQL Editor, sem rota nova pro
+-- app") nunca chegou a valer na prática.
+--
+-- Correção: revogar explicitamente. Sem SELECT nenhum para os papéis que o
+-- PostgREST usa (anon, authenticated) — só quem já é owner/service_role do
+-- banco (SQL Editor, é para isso que a view existe) continua enxergando.
+
+REVOKE ALL ON public.user_sequence FROM anon, authenticated, public;
+REVOKE ALL ON public.user_registry FROM anon, authenticated, public;
+
+

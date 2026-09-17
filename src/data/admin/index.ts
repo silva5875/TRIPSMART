@@ -7,6 +7,7 @@ import type {
 } from '@/integrations/supabase/database';
 import { throwFunctionError } from '@/data/functionsError';
 import { attachProfiles } from '@/data/itineraries';
+import type { PlannerStepName } from '@/data/plannerProgress';
 import { queryKeys } from '@/data/queryKeys';
 
 /**
@@ -193,6 +194,7 @@ export function useAdminActivitySeries(daysBack = 30) {
  */
 export interface AdminUserDTO {
   id: string;
+  userNumber: number | null;
   email: string | null;
   displayName: string | null;
   avatarUrl: string | null;
@@ -211,6 +213,7 @@ export interface AdminUserDTO {
 function toAdminUserDTO(row: AdminUserRow): AdminUserDTO {
   return {
     id: row.id,
+    userNumber: row.user_number,
     email: row.email,
     displayName: row.display_name,
     avatarUrl: row.avatar_url,
@@ -558,6 +561,76 @@ export function useAdminReviews(options?: { enabled?: boolean; limit?: number })
         score: r.score,
         comment: r.comment,
         createdAt: r.created_at,
+      }));
+    },
+  });
+}
+
+// ============================================================
+// Funil de abandono do planejador
+// ============================================================
+
+const STEP_LABELS: Record<PlannerStepName, string> = {
+  budget: 'Orçamento',
+  month: 'Mês',
+  'transport-arrival': 'Transporte (ida)',
+  city: 'Cidade',
+  accommodation: 'Hospedagem',
+  'local-transport': 'Transporte local',
+  summary: 'Concluiu',
+};
+
+export interface PlannerFunnelStepDTO {
+  step: PlannerStepName;
+  label: string;
+  count: number;
+}
+
+/** Quantos usuários distintos já alcançaram cada etapa alguma vez — nunca
+ * diminui, mesmo depois que alguém termina ou reinicia o planejamento. */
+export function useAdminPlannerFunnel() {
+  return useQuery({
+    queryKey: queryKeys.adminPlannerFunnel,
+    queryFn: async (): Promise<PlannerFunnelStepDTO[]> => {
+      const { data, error } = await supabase.rpc('admin_planner_funnel');
+      if (error) throw error;
+      return (data ?? []).map((r) => ({
+        step: r.step as PlannerStepName,
+        label: STEP_LABELS[r.step as PlannerStepName] ?? r.step,
+        count: Number(r.users_reached),
+      }));
+    },
+  });
+}
+
+export interface AdminStuckUserDTO {
+  userId: string;
+  step: PlannerStepName;
+  stepLabel: string;
+  displayName: string | null;
+  updatedAt: string;
+}
+
+/** Quem está com um planejamento em andamento agora — nunca inclui
+ * 'summary' (o Planner apaga a linha ao concluir). Base tanto da contagem
+ * por etapa quanto do "ver quem" de cada uma. */
+export function useAdminStuckUsers(options?: { enabled?: boolean }) {
+  return useQuery({
+    enabled: options?.enabled ?? true,
+    queryKey: queryKeys.adminPlannerStuckUsers,
+    queryFn: async (): Promise<AdminStuckUserDTO[]> => {
+      const { data, error } = await supabase.rpc('admin_planner_progress_detail');
+      if (error) throw error;
+
+      const rows = await attachProfiles((data ?? []) as unknown as {
+        user_id: string; step: string; updated_at: string;
+      }[]);
+      return rows.map((r) => ({
+        userId: r.user_id,
+        step: r.step as PlannerStepName,
+        stepLabel: STEP_LABELS[r.step as PlannerStepName] ?? r.step,
+        displayName: r.profile?.display_name ?? null,
+        updatedAt: r.updated_at,
       }));
     },
   });

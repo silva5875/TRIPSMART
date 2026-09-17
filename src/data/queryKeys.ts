@@ -42,4 +42,6 @@ export const queryKeys = {
   adminComments: (limit: number) => ['admin-comments', limit] as const,
   adminLikes: (limit: number) => ['admin-likes', limit] as const,
   adminReviews: (limit: number) => ['admin-reviews', limit] as const,
+  adminPlannerFunnel: ['admin-planner-funnel'] as const,
+  adminPlannerStuckUsers: ['admin-planner-stuck-users'] as const,
 } as const;

@@ -93,6 +93,7 @@ const AdminUsersList = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">ID</TableHead>
                 <TableHead>Usuário</TableHead>
                 <TableHead>Nascimento</TableHead>
                 <TableHead>Cadastro</TableHead>
@@ -112,6 +113,9 @@ const AdminUsersList = () => {
 
                 return (
                   <TableRow key={u.id}>
+                    <TableCell className="text-sm font-semibold text-muted-foreground tabular-nums">
+                      {u.userNumber != null ? `#${u.userNumber}` : '—'}
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2.5 min-w-[180px]">
                         <div className="w-8 h-8 rounded-full bg-pe-gold flex items-center justify-center text-xs font-bold text-pe-navy shrink-0">
