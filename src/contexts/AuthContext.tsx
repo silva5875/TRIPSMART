@@ -18,6 +18,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// `window.location.origin` sozinho não basta: no GitHub Pages de teste o app
+// vive em /TRIPSMART/, não na raiz do domínio (silva5875.github.io/ sem o
+// prefixo é "Site not found" — nem chega a carregar o React para trocar o
+// code pela sessão). `BASE_URL` vem do `base` do vite.config.ts e já inclui
+// as barras (ex: "/TRIPSMART/" ou "/"), então concatena direto.
+const APP_ORIGIN = `${window.location.origin}${import.meta.env.BASE_URL}`;
+
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -45,7 +52,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       email,
       password,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: APP_ORIGIN,
         data: {
           full_name: fullName || '',
           birth_date: birthDate || null,
@@ -66,7 +73,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: APP_ORIGIN,
       },
     });
     return { error: error as Error | null };
@@ -74,7 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/redefinir-senha`,
+      redirectTo: `${APP_ORIGIN}redefinir-senha`,
     });
     return { error: error as Error | null };
   };
