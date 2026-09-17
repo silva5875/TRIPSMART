@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { z } from "https://esm.sh/zod@3.23.8";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,20 +7,85 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/**
+ * Entrada. A checagem antiga (`if (!cityName || !days...)`) só via se os
+ * campos existiam — `days: "dez"` passava reto e só quebrava mais adiante,
+ * dentro do prompt da IA. Aqui o formato é garantido antes de gastar uma
+ * chamada paga.
+ */
+const RequestSchema = z.object({
+  cityName: z.string().trim().min(1).max(100),
+  cityId: z.string().trim().min(1).max(100),
+  days: z.number().int().min(1).max(30),
+  month: z.number().int().min(1).max(12),
+  budget: z.number().positive(),
+  budgetLabel: z.string().trim().min(1).max(100),
+  people: z.number().int().min(1).max(50),
+  groupType: z.enum(["solo", "casal", "familia", "amigos"]),
+});
+
+/**
+ * Saída. A IA devolve texto que a gente espera que seja JSON num certo
+ * formato — "espera" não é garantia. Sem isto, um roteiro mal-formado só
+ * quebrava dentro da tela do usuário, longe de onde o problema começou.
+ * Campos fora do essencial (`festiveAlert`, `attractionZones`, etc.) ficam
+ * soltos: a tela já trata a ausência deles como opcional.
+ */
+const RichItineraryResponseSchema = z.object({
+  city: z.string().min(1),
+  introduction: z.string().optional(),
+  festiveAlert: z
+    .object({ name: z.string(), description: z.string(), priceIncrease: z.string() })
+    .nullable()
+    .optional(),
+  days: z
+    .array(
+      z.object({
+        day: z.number(),
+        title: z.string(),
+        summary: z.string().optional(),
+        activities: z
+          .array(
+            z.object({
+              time: z.string().optional(),
+              period: z.string().optional(),
+              title: z.string(),
+              description: z.string().optional(),
+              location: z.string().optional(),
+              address: z.string().optional(),
+              lat: z.number().optional(),
+              lng: z.number().optional(),
+              estimatedCost: z.number().optional(),
+              duration: z.string().optional(),
+              transport: z.string().optional(),
+              tips: z.string().optional(),
+            })
+          )
+          .default([]),
+      })
+    )
+    .min(1, "A IA não gerou nenhum dia de roteiro"),
+  attractionZones: z.array(z.unknown()).optional(),
+  practicalTips: z.array(z.unknown()).optional(),
+  estimatedTotalCost: z.number().optional(),
+  costBreakdown: z.record(z.number()).optional(),
+});
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { cityName, cityId, days, month, budget, budgetLabel, people, groupType } = await req.json();
-
-    if (!cityName || !days || !month || !budget) {
-      return new Response(JSON.stringify({ error: "Missing required fields: cityName, days, month, budget" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const rawBody = await req.json();
+    const parsedRequest = RequestSchema.safeParse(rawBody);
+    if (!parsedRequest.success) {
+      return new Response(
+        JSON.stringify({ success: false, error: parsedRequest.error.issues[0]?.message ?? "Dados inválidos" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
+    const { cityName, cityId, days, month, budget, budgetLabel, people, groupType } = parsedRequest.data;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -147,16 +213,16 @@ IMPORTANTE: Gere conteúdo REAL e detalhado sobre ${cityName}. Use locais, resta
 
     if (!response.ok) {
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns segundos." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({ success: false, error: "Limite de requisições excedido. Tente novamente em alguns segundos." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos insuficientes. Adicione créditos ao workspace." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({ success: false, error: "Créditos insuficientes. Adicione créditos ao workspace." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
       const errText = await response.text();
       console.error("AI gateway error:", response.status, errText);
@@ -180,7 +246,13 @@ IMPORTANTE: Gere conteúdo REAL e detalhado sobre ${cityName}. Use locais, resta
       throw new Error("Failed to parse itinerary data from AI");
     }
 
-    return new Response(JSON.stringify({ success: true, data: parsed }), {
+    const parsedItinerary = RichItineraryResponseSchema.safeParse(parsed);
+    if (!parsedItinerary.success) {
+      console.error("AI retornou roteiro em formato inesperado:", parsedItinerary.error.issues, parsed);
+      throw new Error("A IA devolveu um roteiro em formato inesperado. Tente novamente.");
+    }
+
+    return new Response(JSON.stringify({ success: true, data: parsedItinerary.data }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

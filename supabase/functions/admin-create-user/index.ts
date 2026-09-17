@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.116.0";
+import { z } from "https://esm.sh/zod@3.23.8";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -39,13 +40,25 @@ function isAtLeast18(dateStr: string): boolean {
   return age >= 18;
 }
 
-interface CreateUserPayload {
-  email?: string;
-  password?: string;
-  displayName?: string;
-  birthDate?: string;
-  role?: "admin" | "user";
-}
+/**
+ * Fronteira de verdade desta função: é aqui que um corpo de requisição vindo
+ * de fora (só o navegador hoje, mas o endpoint aceita qualquer chamador com a
+ * chave anon) se torna um dado em que o resto do código pode confiar. Um
+ * `safeParse` só, no lugar da cadeia de `if` que existia antes — as mesmas
+ * mensagens de erro, uma checagem por vez, sem repetir `jsonResponse(...)`.
+ */
+const CreateUserSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Email inválido"),
+  password: z
+    .string()
+    .regex(PASSWORD_REGEX, "A senha precisa ter 8+ caracteres, 1 maiúscula, 1 número e 1 caractere especial"),
+  displayName: z.string().trim().max(100).nullish(),
+  birthDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Data de nascimento inválida ou usuário com menos de 18 anos")
+    .refine(isAtLeast18, "Data de nascimento inválida ou usuário com menos de 18 anos"),
+  role: z.enum(["admin", "user"]).default("user"),
+});
 
 function jsonResponse(body: unknown, status: number) {
   return new Response(JSON.stringify(body), {
@@ -80,28 +93,16 @@ serve(async (req) => {
       return jsonResponse({ success: false, error: "not authorized" }, 403);
     }
 
-    const payload: CreateUserPayload = await req.json();
-    const email = payload.email?.trim().toLowerCase();
-    const password = payload.password ?? "";
-    const displayName = payload.displayName?.trim() || null;
-    const birthDate = payload.birthDate?.trim() || "";
-    const role = payload.role === "admin" ? "admin" : "user";
-
-    if (!email || !email.includes("@")) {
-      return jsonResponse({ success: false, error: "Email inválido" }, 400);
-    }
-    if (!PASSWORD_REGEX.test(password)) {
+    const rawPayload = await req.json();
+    const parsedPayload = CreateUserSchema.safeParse(rawPayload);
+    if (!parsedPayload.success) {
       return jsonResponse(
-        { success: false, error: "A senha precisa ter 8+ caracteres, 1 maiúscula, 1 número e 1 caractere especial" },
+        { success: false, error: parsedPayload.error.issues[0]?.message ?? "Dados inválidos" },
         400
       );
     }
-    if (!birthDate || !isAtLeast18(birthDate)) {
-      return jsonResponse(
-        { success: false, error: "Data de nascimento inválida ou usuário com menos de 18 anos" },
-        400
-      );
-    }
+    const { email, password, birthDate, role } = parsedPayload.data;
+    const displayName = parsedPayload.data.displayName?.trim() || null;
 
     // Só a partir daqui usa o service role — a checagem de admin já passou
     // com o client "como o chamador", acima.
