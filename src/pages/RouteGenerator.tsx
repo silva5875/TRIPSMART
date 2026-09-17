@@ -97,7 +97,7 @@ const RouteGenerator = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Seo title="Gerador de roteiro editorial — TRIPSMART" description="Roteiros narrativos, completos e ilustrados para sua viagem em Pernambuco." path="/#/gerador" />
+      <Seo title="Gerador de roteiro editorial — TRIPSMART" description="Roteiros narrativos, completos e ilustrados para sua viagem em Pernambuco." path="/gerador" />
       <AppHeader />
 
       <div className="max-w-4xl mx-auto px-6 py-12 space-y-10">

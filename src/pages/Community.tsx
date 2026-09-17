@@ -54,7 +54,7 @@ const Community = () => {
       <Seo
         title="Comunidade — Roteiros compartilhados em Pernambuco | TRIPSMART"
         description="Descubra roteiros reais compartilhados pela comunidade TRIPSMART em Recife, Olinda, Noronha e mais."
-        path="/#/comunidade"
+        path="/comunidade"
         jsonLd={{ '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'Roteiros da comunidade TRIPSMART' }}
       />
       <AppHeader />

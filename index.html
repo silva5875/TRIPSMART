@@ -20,6 +20,23 @@
 
   <body>
     <div id="root"></div>
+    <script type="text/javascript">
+      // Contraparte de public/404.html: desfaz a codificação da URL e devolve
+      // o caminho pedido ao formato normal antes do React Router ler
+      // `location` — precisa rodar antes do módulo abaixo.
+      (function (l) {
+        if (l.search[1] === '/') {
+          var decoded = l.search
+            .slice(1)
+            .split('&')
+            .map(function (s) {
+              return s.replace(/~and~/g, '&');
+            })
+            .join('?');
+          window.history.replaceState(null, null, l.pathname.slice(0, -1) + decoded + l.hash);
+        }
+      })(window.location);
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -116,7 +116,7 @@ const TravelHistory = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Seo title="Histórico de viagens — TRIPSMART" description="Acesse seus roteiros salvos e baixe em PDF." path="/#/historico" />
+      <Seo title="Histórico de viagens — TRIPSMART" description="Acesse seus roteiros salvos e baixe em PDF." path="/historico" />
       <AppHeader />
 
       <div className="bg-pe-blue px-4 md:px-6 py-8 md:py-10">

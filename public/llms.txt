@@ -5,12 +5,12 @@
 ## Páginas
 
 - [Início](/): Destinos em destaque, atividades e planejamento.
-- [Planejar viagem](/#/planejar): Monte um roteiro personalizado com IA.
-- [Comunidade](/#/comunidade): Roteiros compartilhados por outros viajantes.
-- [Gerador de roteiro](/#/gerador): Roteiros editoriais ricos.
-- [Login / Cadastro](/#/auth): Acesso à conta.
+- [Planejar viagem](/planejar): Monte um roteiro personalizado com IA.
+- [Comunidade](/comunidade): Roteiros compartilhados por outros viajantes.
+- [Gerador de roteiro](/gerador): Roteiros editoriais ricos.
+- [Login / Cadastro](/auth): Acesso à conta.
 
 ## Opcional
 
-- [Histórico](/#/historico): Seus roteiros salvos.
-- [Perfil](/#/perfil): Estatísticas pessoais.
+- [Histórico](/historico): Seus roteiros salvos.
+- [Perfil](/perfil): Estatísticas pessoais.

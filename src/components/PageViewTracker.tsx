@@ -5,10 +5,10 @@ import { useCookieConsent } from '@/contexts/CookieConsentContext';
 import { trackPageView } from '@/data/analytics';
 
 /**
- * Não renderiza nada — só observa a rota (via react-router, já normalizada
- * mesmo com HashRouter) e registra uma visualização a cada troca de página.
- * Precisa ficar dentro do <HashRouter>, mas fora de <Routes>, para ver toda
- * navegação sem precisar existir em cada página.
+ * Não renderiza nada — só observa a rota (via react-router) e registra uma
+ * visualização a cada troca de página. Precisa ficar dentro do
+ * <BrowserRouter>, mas fora de <Routes>, para ver toda navegação sem
+ * precisar existir em cada página.
  *
  * Só rastreia com consentimento aceito (ver CookieConsentContext). Enquanto a
  * decisão está pendente ou foi recusada, nenhuma chamada é feita — não é um

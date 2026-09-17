@@ -34,7 +34,7 @@ const ActivityDetail = () => {
       <Seo
         title={`${spot.name}, ${city.name} — TRIPSMART`}
         description={spot.description?.slice(0, 155) || `${spot.name} em ${city.name}, Pernambuco. Avaliação ${spot.rating}/5.`}
-        path={`/#/atividade/${cityId}/${spotId}`}
+        path={`/atividade/${cityId}/${spotId}`}
         image={spot.imageUrl}
         type="article"
         jsonLd={{

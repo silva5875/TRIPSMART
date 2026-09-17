@@ -28,9 +28,10 @@ const ResetPassword = () => {
     }
   }, [session]);
 
-  // Recovery links can land with tokens in the URL (hash or query). With a
-  // HashRouter the Supabase client may not pick them up automatically, so we
-  // parse and establish the session manually.
+  // Recovery links can land with tokens either in the hash (implicit flow,
+  // legacy links already sent) or in the query string (PKCE, current flow).
+  // We parse both defensively and establish the session manually instead of
+  // relying only on `detectSessionInUrl`.
   useEffect(() => {
     let cancelled = false;
 
@@ -98,7 +99,7 @@ const ResetPassword = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6 bg-background">
-      <Seo title="Redefinir senha — TRIPSMART" description="Defina uma nova senha para sua conta TRIPSMART." path="/#/redefinir-senha" />
+      <Seo title="Redefinir senha — TRIPSMART" description="Defina uma nova senha para sua conta TRIPSMART." path="/redefinir-senha" />
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}

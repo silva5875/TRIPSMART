@@ -1,14 +1,9 @@
--- ============================================================
--- TripSmart — script de setup completo do banco (Supabase)
--- Gerado automaticamente concatenando supabase/migrations/*.sql
--- na ordem cronologica. Use apenas para criar um banco do zero;
--- para um banco existente, aplique as migrations novas uma a uma.
--- ============================================================
+-- Script gerado automaticamente concatenando supabase/migrations/*.sql em ordem.
+-- Não editar manualmente — rode o script de geração após criar uma migration nova.
 
 -- ============================================================
--- Migration: 20260314233525_94608e04-4d6a-47c8-8b0e-3bdaebab41d2.sql
+-- 20260314233525_94608e04-4d6a-47c8-8b0e-3bdaebab41d2.sql
 -- ============================================================
-
 
 -- Create function to update timestamps (if not exists)
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
@@ -59,22 +54,18 @@ CREATE TRIGGER update_travel_history_updated_at
 -- Index for user queries
 CREATE INDEX idx_travel_history_user_id ON public.travel_history(user_id);
 
-
 -- ============================================================
--- Migration: 20260315182058_0c735838-524d-4c30-a4d7-59b9cd1548eb.sql
+-- 20260315182058_0c735838-524d-4c30-a4d7-59b9cd1548eb.sql
 -- ============================================================
-
 ALTER TABLE public.travel_history 
   ADD COLUMN IF NOT EXISTS month integer,
   ADD COLUMN IF NOT EXISTS transport_to_destination text,
   ADD COLUMN IF NOT EXISTS tourist_spots jsonb DEFAULT '[]'::jsonb,
   ADD COLUMN IF NOT EXISTS local_transport text,
   ADD COLUMN IF NOT EXISTS restaurants jsonb DEFAULT '[]'::jsonb;
-
 -- ============================================================
--- Migration: 20260317152921_e74ac6d6-88ca-42de-9c25-0ecf152ea5c8.sql
+-- 20260317152921_e74ac6d6-88ca-42de-9c25-0ecf152ea5c8.sql
 -- ============================================================
-
 
 -- Shared itineraries table
 CREATE TABLE public.shared_itineraries (
@@ -211,11 +202,9 @@ CREATE TRIGGER on_auth_user_created
 ALTER PUBLICATION supabase_realtime ADD TABLE public.shared_itineraries;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.itinerary_comments;
 
-
 -- ============================================================
--- Migration: 20260330004918_57841fca-9b91-411b-9c0a-b89216974e3a.sql
+-- 20260330004918_57841fca-9b91-411b-9c0a-b89216974e3a.sql
 -- ============================================================
-
 
 -- 1. Fix travel_history: scope policies to authenticated and add UPDATE policy
 ALTER POLICY "Users can view their own travel history" ON public.travel_history TO authenticated;
@@ -297,17 +286,13 @@ CREATE POLICY "Users can update own itineraries"
     AND likes_count IS NOT DISTINCT FROM (SELECT likes_count FROM shared_itineraries WHERE id = shared_itineraries.id)
   );
 
-
 -- ============================================================
--- Migration: 20260330165041_740bede7-1637-4e11-a6d1-758b8687f17a.sql
+-- 20260330165041_740bede7-1637-4e11-a6d1-758b8687f17a.sql
 -- ============================================================
-
 ALTER TABLE public.profiles ADD COLUMN birth_date date;
-
 -- ============================================================
--- Migration: 20260330165123_24b97702-8411-4d7f-8177-17e027e7b69b.sql
+-- 20260330165123_24b97702-8411-4d7f-8177-17e027e7b69b.sql
 -- ============================================================
-
 CREATE OR REPLACE FUNCTION public.handle_new_user()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -324,11 +309,9 @@ BEGIN
   RETURN NEW;
 END;
 $function$;
-
 -- ============================================================
--- Migration: 20260407124907_2a730826-a17d-4ee9-8326-93843785192f.sql
+-- 20260407124907_2a730826-a17d-4ee9-8326-93843785192f.sql
 -- ============================================================
-
 
 CREATE TABLE public.accommodation_reviews (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -366,11 +349,9 @@ CREATE POLICY "Users can update own activity reviews" ON public.activity_reviews
 
 CREATE UNIQUE INDEX idx_activity_reviews_unique ON public.activity_reviews (user_id, activity_name, city_id);
 
-
 -- ============================================================
--- Migration: 20260915120000_normalize_city_id.sql
+-- 20260915120000_normalize_city_id.sql
 -- ============================================================
-
 -- Normaliza city_id para o slug canônico da cidade.
 --
 -- Problema: StepSummary gravava city_id como slug ("porto-galinhas") enquanto
@@ -483,11 +464,9 @@ CREATE INDEX IF NOT EXISTS idx_activity_reviews_city_id
 CREATE INDEX IF NOT EXISTS idx_accommodation_reviews_city_id
   ON public.accommodation_reviews (city_id);
 
-
 -- ============================================================
--- Migration: 20260915120100_add_personalization_columns.sql
+-- 20260915120100_add_personalization_columns.sql
 -- ============================================================
-
 -- Colunas que faltavam para conseguir derivar preferências de viagem.
 -- Depende de 20260915120000_normalize_city_id.sql (usa public.city_aliases).
 
@@ -522,11 +501,9 @@ WHERE a.alias = h.state
 CREATE INDEX IF NOT EXISTS idx_travel_history_city_id
   ON public.travel_history (city_id);
 
-
 -- ============================================================
--- Migration: 20260915120200_user_preferences.sql
+-- 20260915120200_user_preferences.sql
 -- ============================================================
-
 -- Perfil de gosto do usuário, usado para personalizar os roteiros.
 -- Depende de 20260915120100_add_personalization_columns.sql (usa activity_reviews.category
 -- e travel_history.city_id/days).
@@ -691,11 +668,9 @@ $function$;
 REVOKE ALL ON FUNCTION public.refresh_my_preferences() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.refresh_my_preferences() TO authenticated;
 
-
 -- ============================================================
--- Migration: 20260916100000_roles_and_soft_delete.sql
+-- 20260916100000_roles_and_soft_delete.sql
 -- ============================================================
-
 -- Papéis de acesso + soft delete em travel_history, shared_itineraries e
 -- itinerary_comments.
 --
@@ -855,11 +830,9 @@ CREATE POLICY "Admins can update any comment"
 --   SELECT id, 'admin' FROM auth.users WHERE email = 'seu-email@exemplo.com'
 --   ON CONFLICT (user_id, role) DO NOTHING;
 
-
 -- ============================================================
--- Migration: 20260916110000_admin_dashboard_and_users.sql
+-- 20260916110000_admin_dashboard_and_users.sql
 -- ============================================================
-
 -- Painel administrativo: visão geral do site, gestão de usuários,
 -- concessão/revogação de admin e inativação de conta.
 --
@@ -1073,11 +1046,9 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.admin_activity_series(INT) TO authenticated;
 
-
 -- ============================================================
--- Migration: 20260916120000_page_view_tracking.sql
+-- 20260916120000_page_view_tracking.sql
 -- ============================================================
-
 -- Rastreamento de tráfego, incluindo visitantes não logados.
 --
 -- Design de privacidade, de propósito:
@@ -1228,11 +1199,9 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.admin_top_referrers(INT, INT) TO authenticated;
 
-
 -- ============================================================
--- Migration: 20260916130000_fix_page_view_insert_policy.sql
+-- 20260916130000_fix_page_view_insert_policy.sql
 -- ============================================================
-
 -- Corrige a política de INSERT de page_views.
 --
 -- A versão anterior (`TO anon, authenticated`) foi testada direto contra o
@@ -1255,11 +1224,9 @@ CREATE POLICY "Anyone can record a page view"
   ON public.page_views FOR INSERT TO public
   WITH CHECK (true);
 
-
 -- ============================================================
--- Migration: 20260916140000_add_dev_role.sql
+-- 20260916140000_add_dev_role.sql
 -- ============================================================
-
 -- Novo valor de app_role só para identificar visualmente a conta do
 -- desenvolvedor responsável na aba Usuários — não concede nenhuma permissão
 -- extra (quem decide acesso é 'admin', via is_admin(); 'dev' é só etiqueta).
@@ -1271,11 +1238,9 @@ CREATE POLICY "Anyone can record a page view"
 
 ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'dev';
 
-
 -- ============================================================
--- Migration: 20260916140100_grant_dev_role.sql
+-- 20260916140100_grant_dev_role.sql
 -- ============================================================
-
 -- Marca sua própria conta com a etiqueta "Dev responsável" na aba Usuários.
 -- Rode DEPOIS de 20260916140000_add_dev_role.sql (numa segunda execução —
 -- ver o comentário daquele arquivo sobre por quê).
@@ -1287,11 +1252,9 @@ INSERT INTO public.user_roles (user_id, role)
 SELECT id, 'dev' FROM auth.users WHERE email = 'adonai5875@gmail.com'
 ON CONFLICT (user_id, role) DO NOTHING;
 
-
 -- ============================================================
--- Migration: 20260916150000_dtnascimento.sql
+-- 20260916150000_dtnascimento.sql
 -- ============================================================
-
 -- Tabela dedicada para data de nascimento, com controle de idade (18+) e
 -- idade exata (anos, meses, dias) exposta para o painel administrativo.
 --
@@ -1447,11 +1410,9 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.admin_list_users() TO authenticated;
 
-
 -- ============================================================
--- Migration: 20260917100000_fix_shared_itineraries_update_policy.sql
+-- 20260917100000_fix_shared_itineraries_update_policy.sql
 -- ============================================================
-
 -- Corrige um bug real de RLS que quebra a edição de QUALQUER roteiro
 -- compartilhado, para qualquer usuário, desde que existam 2+ roteiros na
 -- tabela — encontrado numa revisão de código, não relatado por usuário.
@@ -1494,11 +1455,9 @@ CREATE POLICY "Users can update own itineraries"
     )
   );
 
-
 -- ============================================================
--- Migration: 20260917100100_fix_moderation_undo.sql
+-- 20260917100100_fix_moderation_undo.sql
 -- ============================================================
-
 -- Corrige duas brechas de moderação encontradas numa revisão de código: o
 -- próprio dono conseguia desfazer um soft-delete feito por admin.
 --
@@ -1548,11 +1507,9 @@ CREATE POLICY "Users can update own birth date"
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
-
 -- ============================================================
--- Migration: 20260917110000_travel_history_protocol.sql
+-- 20260917110000_travel_history_protocol.sql
 -- ============================================================
-
 -- Número de protocolo para cada viagem salva — uma referência curta e
 -- sequencial que o usuário pode anotar/informar, ao contrário do UUID interno
 -- (36 caracteres, impraticável de ditar ou digitar de cabeça).
@@ -1576,11 +1533,9 @@ ALTER TABLE public.travel_history
 -- um dia, a sequence é limpa junto em vez de ficar órfã.
 ALTER SEQUENCE public.travel_history_protocol_seq OWNED BY public.travel_history.protocol_number;
 
-
 -- ============================================================
--- Migration: 20260917120000_planner_progress.sql
+-- 20260917120000_planner_progress.sql
 -- ============================================================
-
 -- Progresso do assistente de planejamento (Planner.tsx), salvo no banco a
 -- cada etapa respondida — não só em sessionStorage.
 --
@@ -1616,11 +1571,9 @@ CREATE TRIGGER update_planner_progress_updated_at
   BEFORE UPDATE ON public.planner_progress
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-
 -- ============================================================
--- Migration: 20260917130000_admin_day_traffic_detail.sql
+-- 20260917130000_admin_day_traffic_detail.sql
 -- ============================================================
-
 -- Detalhamento de tráfego de um dia específico, para o clique numa barra do
 -- gráfico "Fluxo de pessoas" no painel administrativo.
 --
@@ -1682,11 +1635,9 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.admin_day_traffic_detail(DATE) TO authenticated;
 
-
 -- ============================================================
--- Migration: 20260917140000_planner_funnel.sql
+-- 20260917140000_planner_funnel.sql
 -- ============================================================
-
 -- Funil de abandono do assistente de planejamento.
 --
 -- `planner_progress` (migration 20260917120000) não serve de base pra isto:
@@ -1782,11 +1733,9 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.admin_planner_progress_detail() TO authenticated;
 
-
 -- ============================================================
--- Migration: 20260917141000_fix_planner_step_events_insert_policy.sql
+-- 20260917141000_fix_planner_step_events_insert_policy.sql
 -- ============================================================
-
 -- Corrige a política de INSERT de planner_step_events.
 --
 -- Testado direto contra o projeto em produção: um usuário LOGADO inserindo
@@ -1806,11 +1755,9 @@ CREATE POLICY "Users record own step events"
   ON public.planner_step_events FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
-
 -- ============================================================
--- Migration: 20260917142000_planner_step_events_select_policy.sql
+-- 20260917142000_planner_step_events_select_policy.sql
 -- ============================================================
-
 -- Causa raiz de verdade do 42501 em planner_step_events (a correção anterior,
 -- 20260917141000, recriou a política de INSERT à toa — ela já estava certa).
 --
@@ -1830,11 +1777,9 @@ CREATE POLICY "Users can read own step events"
   ON public.planner_step_events FOR SELECT TO authenticated
   USING (auth.uid() = user_id);
 
-
 -- ============================================================
--- Migration: 20260917150000_user_sequence.sql
+-- 20260917150000_user_sequence.sql
 -- ============================================================
-
 -- Numeração sequencial dos usuários (usuário #1, #2, #3...), pro painel
 -- administrativo. `auth.users.id` é UUID — ótimo pra segurança, péssimo pra
 -- um número que um humano reconheça de cabeça. Esta tabela é só isso: uma
@@ -1969,11 +1914,9 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.admin_list_users() TO authenticated;
 
-
 -- ============================================================
--- Migration: 20260917160000_user_registry_view.sql
+-- 20260917160000_user_registry_view.sql
 -- ============================================================
-
 -- `user_sequence` (migration 20260917150000) era só a ponte id↔user_id.
 -- Agora "SELECT * FROM user_sequence" deve devolver a pessoa inteira numa
 -- linha só — nome, nascimento, email, quando foi desativada (se foi),
@@ -2180,11 +2123,9 @@ LEFT JOIN public.profiles p ON p.id = r.user_id
 LEFT JOIN public.dtnascimento d ON d.user_id = r.user_id
 ORDER BY r.id;
 
-
 -- ============================================================
--- Migration: 20260917161000_user_sequence_extra_fields.sql
+-- 20260917161000_user_sequence_extra_fields.sql
 -- ============================================================
-
 -- Mais colunas na view user_sequence (migration 20260917160000) e a
 -- capacidade de desativar por UPDATE direto nela.
 
@@ -2265,11 +2206,9 @@ CREATE TRIGGER user_sequence_update_trigger
   INSTEAD OF UPDATE ON public.user_sequence
   FOR EACH ROW EXECUTE FUNCTION public.user_sequence_update();
 
-
 -- ============================================================
--- Migration: 20260917162000_lock_down_user_sequence_view.sql
+-- 20260917162000_lock_down_user_sequence_view.sql
 -- ============================================================
-
 -- CORREÇÃO DE SEGURANÇA — urgente.
 --
 -- Testado direto contra o projeto em produção: `user_sequence` estava
@@ -2293,4 +2232,53 @@ CREATE TRIGGER user_sequence_update_trigger
 REVOKE ALL ON public.user_sequence FROM anon, authenticated, public;
 REVOKE ALL ON public.user_registry FROM anon, authenticated, public;
 
+-- ============================================================
+-- 20260917170000_profile_image_upload.sql
+-- ============================================================
+-- Upload de foto de perfil de verdade (arquivo, não mais só URL colada).
+--
+-- `imagem_perfil` guarda o caminho do objeto no Storage, no formato
+-- "<user_id>/<hash-sha256-do-arquivo>.<ext>" — o hash como nome evita
+-- duplicar a mesma imagem enviada de novo (upsert sobrescreve o mesmo
+-- caminho) e funciona como cache-buster natural quando a foto muda de
+-- verdade (o hash muda junto). `avatar_url` (texto livre, nunca teve upload
+-- de fato) continua existindo sem uso nesta tela a partir de agora.
+
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS imagem_perfil text;
+
+-- Bucket público: a foto de perfil é para ser vista pelo resto do app
+-- (como avatar_url já era, em tese). Só o dono (auth.uid()) pode enviar,
+-- substituir ou apagar dentro da própria pasta.
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('avatars', 'avatars', true)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "Qualquer um pode ver avatares"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'avatars');
+
+CREATE POLICY "Usuário envia seu próprio avatar"
+  ON storage.objects FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    bucket_id = 'avatars'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+CREATE POLICY "Usuário substitui seu próprio avatar"
+  ON storage.objects FOR UPDATE
+  TO authenticated
+  USING (
+    bucket_id = 'avatars'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+CREATE POLICY "Usuário apaga seu próprio avatar"
+  ON storage.objects FOR DELETE
+  TO authenticated
+  USING (
+    bucket_id = 'avatars'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+  );
 

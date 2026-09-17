@@ -102,7 +102,7 @@ const Auth = () => {
       <Seo
         title={isLogin ? 'Entrar — TRIPSMART' : 'Criar conta — TRIPSMART'}
         description={isLogin ? 'Acesse sua conta TRIPSMART para planejar roteiros em Pernambuco.' : 'Crie sua conta TRIPSMART e comece a planejar viagens por Pernambuco com IA.'}
-        path="/#/auth"
+        path="/auth"
       />
       {/* Left side — Blue panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-pe-blue relative flex-col justify-between p-12">

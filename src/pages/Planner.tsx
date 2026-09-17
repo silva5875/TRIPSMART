@@ -115,7 +115,7 @@ const Planner = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Seo title="Planejar viagem — TRIPSMART" description="Monte um roteiro personalizado em Pernambuco com IA: orçamento, cidades, hospedagem e atividades." path="/#/planejar" />
+      <Seo title="Planejar viagem — TRIPSMART" description="Monte um roteiro personalizado em Pernambuco com IA: orçamento, cidades, hospedagem e atividades." path="/planejar" />
       <div className="sticky top-0 z-50 bg-pe-navy border-b border-pe-blue/20 px-3 md:px-6 py-2 md:py-3">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => step === 'budget' ? navigate('/') : goBack()} className="gap-1.5 text-white/80 hover:text-white hover:bg-white/10 text-xs md:text-sm px-2 md:px-3">

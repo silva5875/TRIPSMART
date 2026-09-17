@@ -785,6 +785,8 @@ export const monthNames = [
 export const monthEmojis = ["☀️", "🎭", "🌧️", "🍂", "🌸", "❄️", "🎿", "🌾", "🍁", "🎃", "🌤️", "🎄"];
 
 export const transportOptions = [
+  { id: "aviao", label: "Avião", emoji: "✈️", desc: "Rápido, ideal para longas distâncias e ilhas como Fernando de Noronha" },
+  { id: "navio", label: "Barco / Navio de Cruzeiro", emoji: "🛳️", desc: "Alternativa marítima para chegar a ilhas como Fernando de Noronha" },
   { id: "onibus", label: "Ônibus", emoji: "🚌", desc: "Econômico e com diversas rotas" },
   { id: "carro", label: "Carro", emoji: "🚗", desc: "Flexibilidade total no trajeto" },
   { id: "moto", label: "Moto", emoji: "🏍️", desc: "Agilidade e economia no deslocamento" },

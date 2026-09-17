@@ -1,18 +1,35 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Navigation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ThemeToggle from '@/components/ThemeToggle';
 
 interface AppHeaderProps {
-  /** Rótulo do botão de voltar. Padrão: "Início". */
+  /** Rótulo do botão de voltar quando não há página anterior no app. Padrão: "Início". */
   backLabel?: string;
-  /** Destino do botão de voltar. Padrão: a home. */
+  /** Destino do botão de voltar quando não há página anterior no app. Padrão: a home. */
   backTo?: string;
 }
 
-/** Barra de navegação padrão. Antes estava copiada em 4 páginas, com classes divergentes. */
+/**
+ * Barra de navegação padrão. Antes estava copiada em 4 páginas, com classes
+ * divergentes.
+ *
+ * O botão de voltar usa o histórico de navegação de verdade (home → perfil →
+ * comunidade volta para perfil, não direto pra home) sempre que o usuário
+ * chegou à página navegando dentro do próprio app. `location.key === 'default'`
+ * é como o react-router marca a primeira entrada do histórico desta aba —
+ * ou seja, quem chegou aqui direto (link externo, favorito, refresh) e não
+ * tem para onde voltar; nesse caso cai no destino fixo (`backTo`).
+ */
 const AppHeader = ({ backLabel = 'Início', backTo = '/' }: AppHeaderProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const canGoBack = location.key !== 'default';
+
+  const handleBack = () => {
+    if (canGoBack) navigate(-1);
+    else navigate(backTo);
+  };
 
   return (
     <nav className="sticky top-0 z-50 bg-pe-navy border-b border-pe-blue/20">
@@ -34,10 +51,10 @@ const AppHeader = ({ backLabel = 'Início', backTo = '/' }: AppHeaderProps) => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate(backTo)}
+            onClick={handleBack}
             className="gap-1.5 text-xs font-bold text-white/80 hover:text-white hover:bg-white/10"
           >
-            <ArrowLeft size={14} /> <span className="hidden sm:inline">{backLabel}</span>
+            <ArrowLeft size={14} /> <span className="hidden sm:inline">{canGoBack ? 'Voltar' : backLabel}</span>
           </Button>
         </div>
       </div>

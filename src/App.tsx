@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HashRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -35,7 +35,7 @@ const App = () => (
           <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-lg focus:font-bold">
             Pular para o conteúdo principal
           </a>
-          <HashRouter>
+          <BrowserRouter>
             <AuthProvider>
               <PageViewTracker />
               <Routes>
@@ -53,7 +53,7 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AuthProvider>
-          </HashRouter>
+          </BrowserRouter>
           <CookieConsentBanner />
         </CookieConsentProvider>
       </ErrorBoundary>

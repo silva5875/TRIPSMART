@@ -17,10 +17,10 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
-    // PKCE é obrigatório aqui, não preferência: o app usa HashRouter, e o fluxo
-    // implícito (padrão do supabase-js) devolve `#access_token=...` no hash —
-    // exatamente onde moram as rotas. PKCE volta como `?code=...` na query
-    // string e não colide. `detectSessionInUrl` faz a troca do code sozinho.
+    // PKCE em vez do fluxo implícito (padrão do supabase-js): o código volta
+    // como `?code=...` na query string, em vez de `#access_token=...` no
+    // hash — mais simples de lidar com um BrowserRouter na mesma URL.
+    // `detectSessionInUrl` faz a troca do code sozinho.
     flowType: 'pkce',
     detectSessionInUrl: true,
   },

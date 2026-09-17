@@ -1,11 +1,25 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
   <head>
-    <meta charset="utf-8">
-    <title>Redirecting...</title>
-    <script>
-      // Redirect all 404s to index.html for SPA routing
-      var pathSegmentsToKeep = 1;
+    <meta charset="utf-8" />
+    <title>TRIPSMART</title>
+    <script type="text/javascript">
+      // GitHub Pages não tem redirecionamento do lado do servidor — qualquer
+      // caminho que não seja a raiz (ex: /perfil) cai aqui, porque é isso que
+      // o GitHub Pages serve para tudo que não é um arquivo real no build.
+      //
+      // Reescreve o caminho pedido como query string e manda pro index.html,
+      // que devolve pro formato normal (via history.replaceState, ver o
+      // script equivalente em index.html) antes do React Router montar.
+      //
+      // Truque padrão da comunidade para SPA em GitHub Pages:
+      // https://github.com/rafgraph/spa-github-pages
+      //
+      // pathSegmentsToKeep: 0 para domínio próprio na raiz (ex: tripsmart.com/perfil).
+      // Se publicar sem domínio próprio, em usuario.github.io/nome-do-repo/,
+      // troque para 1 — e defina `base: '/nome-do-repo/'` em vite.config.ts.
+      var pathSegmentsToKeep = 0;
+
       var l = window.location;
       l.replace(
         l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +

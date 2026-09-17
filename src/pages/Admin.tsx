@@ -29,7 +29,7 @@ const Admin = () => {
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-background">
-        <Seo title="Acesso restrito — TRIPSMART" description="Área administrativa." path="/#/admin" />
+        <Seo title="Acesso restrito — TRIPSMART" description="Área administrativa." path="/admin" />
         <AppHeader />
         <div className="max-w-md mx-auto px-6 py-20 text-center space-y-4">
           <ShieldAlert size={48} className="mx-auto text-muted-foreground" />
@@ -45,7 +45,7 @@ const Admin = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Seo title="Painel administrativo — TRIPSMART" description="Visão geral, usuários e registros removidos." path="/#/admin" />
+      <Seo title="Painel administrativo — TRIPSMART" description="Visão geral, usuários e registros removidos." path="/admin" />
       <AppHeader />
 
       <div className="bg-pe-navy px-4 md:px-6 py-8 md:py-10">

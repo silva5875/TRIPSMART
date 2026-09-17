@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -7,14 +7,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   User, Mail, Edit3, Save, LogOut, History,
-  Users, MapPin, Shield, Eye, EyeOff, Check, AlertTriangle,
+  Users, MapPin, Shield, Eye, EyeOff, Check, AlertTriangle, Camera, Loader2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRequireAuth } from '@/hooks/use-require-auth';
 import AppHeader from '@/components/AppHeader';
 import Seo from '@/components/Seo';
 import {
-  useMyBirthDate, useProfile, useProfileStats, useUpdateMyBirthDate, useUpdateProfile,
+  getAvatarFileError, getProfileImageUrl, useMyBirthDate, useProfile, useProfileStats,
+  useUpdateMyBirthDate, useUpdateProfile, useUploadProfileImage,
 } from '@/data/profiles';
 import { useIsAdmin } from '@/data/admin';
 import { formatBirthDate, initials as initialOf } from '@/lib/format';
@@ -33,9 +34,10 @@ const Profile = () => {
   const { data: myBirthDate } = useMyBirthDate();
   const updateProfile = useUpdateProfile();
   const updateMyBirthDate = useUpdateMyBirthDate();
+  const uploadProfileImage = useUploadProfileImage();
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const [displayName, setDisplayName] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [editing, setEditing] = useState(false);
   const [showPasswordSection, setShowPasswordSection] = useState(false);
@@ -47,7 +49,6 @@ const Profile = () => {
   // Semeia os campos editáveis quando o perfil chega (e ao cancelar a edição).
   useEffect(() => {
     setDisplayName(profile?.display_name ?? '');
-    setAvatarUrl(profile?.avatar_url ?? '');
   }, [profile]);
 
   useEffect(() => {
@@ -65,7 +66,7 @@ const Profile = () => {
     }
 
     try {
-      await updateProfile.mutateAsync({ displayName, avatarUrl });
+      await updateProfile.mutateAsync({ displayName });
       if (birthDate && birthDate !== myBirthDate) {
         await updateMyBirthDate.mutateAsync(birthDate);
       }
@@ -79,8 +80,25 @@ const Profile = () => {
   const cancelEditing = () => {
     setEditing(false);
     setDisplayName(profile?.display_name ?? '');
-    setAvatarUrl(profile?.avatar_url ?? '');
     setBirthDate(myBirthDate ?? '');
+  };
+
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    const validationError = getAvatarFileError(file);
+    if (validationError) {
+      toast({ title: 'Arquivo inválido', description: validationError, variant: 'destructive' });
+      return;
+    }
+
+    uploadProfileImage.mutate(file, {
+      onSuccess: () => toast({ title: 'Foto de perfil atualizada!' }),
+      onError: (error) =>
+        toast({ title: 'Erro', description: getErrorMessage(error, 'Não foi possível enviar a imagem. Tente novamente.'), variant: 'destructive' }),
+    });
   };
 
   const handleChangePassword = async () => {
@@ -96,10 +114,11 @@ const Profile = () => {
   if (isLoading) return null;
   const initials = initialOf(displayName || user?.email);
   const saving = updateProfile.isPending || updateMyBirthDate.isPending;
+  const profileImageUrl = getProfileImageUrl(profile?.imagem_perfil ?? null) ?? profile?.avatar_url ?? null;
 
   return (
     <div className="min-h-screen bg-background">
-      <Seo title="Meu perfil — TRIPSMART" description="Gerencie sua conta e veja suas estatísticas de viagens em Pernambuco." path="/#/perfil" />
+      <Seo title="Meu perfil — TRIPSMART" description="Gerencie sua conta e veja suas estatísticas de viagens em Pernambuco." path="/perfil" />
       <AppHeader />
 
       {/* Profile header banner */}
@@ -110,9 +129,33 @@ const Profile = () => {
 
       <div className="max-w-2xl mx-auto px-6 -mt-16 pb-10 space-y-8">
         {/* Avatar */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center text-center">
-          <div className="w-28 h-28 rounded-full bg-pe-gold flex items-center justify-center text-3xl font-black text-pe-navy border-4 border-background shadow-lg">
-            {avatarUrl ? <img src={avatarUrl} alt="Avatar" className="w-full h-full rounded-full object-cover" /> : initials}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 flex flex-col items-center text-center">
+          <div className="relative">
+            <div className="w-28 h-28 rounded-full bg-pe-gold flex items-center justify-center text-3xl font-black text-pe-navy border-4 border-background shadow-lg overflow-hidden">
+              {uploadProfileImage.isPending ? (
+                <Loader2 size={28} className="animate-spin text-pe-navy" />
+              ) : profileImageUrl ? (
+                <img src={profileImageUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                initials
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={uploadProfileImage.isPending}
+              title="Trocar foto de perfil"
+              className="absolute -bottom-1 -right-1 w-9 h-9 rounded-full bg-pe-blue text-white border-2 border-background flex items-center justify-center shadow-md hover:bg-pe-blue/90"
+            >
+              <Camera size={15} />
+            </button>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarFileChange}
+            />
           </div>
           <h1 className="text-2xl font-black text-foreground mt-4">{displayName || 'Viajante'}</h1>
           <p className="text-sm text-muted-foreground">{user?.email}</p>
@@ -152,10 +195,6 @@ const Profile = () => {
             <div className="space-y-2">
               <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nome de exibição</Label>
               {editing ? <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Seu nome" className="h-11 rounded-xl" /> : <p className="text-sm font-semibold text-foreground py-2">{displayName || 'Não definido'}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">URL do avatar</Label>
-              {editing ? <Input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://exemplo.com/foto.jpg" className="h-11 rounded-xl" /> : <p className="text-sm font-semibold text-foreground py-2">{avatarUrl || 'Não definido'}</p>}
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data de nascimento</Label>

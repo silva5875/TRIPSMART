@@ -7,6 +7,7 @@ export interface Profile {
   id: string;
   display_name: string | null;
   avatar_url: string | null;
+  imagem_perfil: string | null;
   created_at: string;
 }
 
@@ -128,13 +129,80 @@ export function useUpdateProfile() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: { displayName: string; avatarUrl: string }) => {
+    mutationFn: async (input: { displayName: string }) => {
       const { error } = await supabase.from('profiles').upsert({
         id: user!.id,
         display_name: input.displayName.trim() || null,
-        avatar_url: input.avatarUrl.trim() || null,
       });
       if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.profile(user?.id ?? '') });
+    },
+  });
+}
+
+const AVATAR_BUCKET = 'avatars';
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+const AVATAR_EXTENSION_BY_MIME: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+};
+
+/** Constrói a URL pública a partir do caminho salvo em `imagem_perfil`. */
+export function getProfileImageUrl(path: string | null): string | null {
+  if (!path) return null;
+  return supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+/**
+ * Valida o arquivo escolhido antes de subir — checado pelo componente para
+ * poder mostrar a mensagem específica direto (`getErrorMessage` nunca deixa
+ * `error.message` cru chegar à tela, então lançar esse texto de dentro da
+ * mutation nunca apareceria para quem usa o app).
+ */
+export function getAvatarFileError(file: File): string | null {
+  if (!file.type.startsWith('image/')) return 'Selecione um arquivo de imagem.';
+  if (file.size > MAX_AVATAR_BYTES) return 'A imagem deve ter no máximo 5 MB.';
+  return null;
+}
+
+/**
+ * Sobe a imagem escolhida para o Storage e grava o caminho em
+ * `profiles.imagem_perfil`. O nome do arquivo é o hash SHA-256 do próprio
+ * conteúdo — reenviar a mesma foto reaproveita o mesmo objeto (upsert), e
+ * trocar a foto de verdade sempre gera um caminho novo.
+ */
+export function useUploadProfileImage() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const validationError = getAvatarFileError(file);
+      if (validationError) throw new Error(validationError);
+
+      const buffer = await file.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+      const hashHex = Array.from(new Uint8Array(hashBuffer))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+      const ext = AVATAR_EXTENSION_BY_MIME[file.type] ?? 'jpg';
+      const path = `${user!.id}/${hashHex}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(AVATAR_BUCKET)
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (uploadError) throw uploadError;
+
+      const { error: dbError } = await supabase
+        .from('profiles')
+        .upsert({ id: user!.id, imagem_perfil: path });
+      if (dbError) throw dbError;
+
+      return path;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.profile(user?.id ?? '') });
