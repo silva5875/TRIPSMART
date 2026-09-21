@@ -8,6 +8,18 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Mesma base usada por supabase/functions/n8n-webhook — reaproveita o
+// mesmo n8n, mas chama direto por fetch: isto roda servidor-a-servidor,
+// sem CORS envolvido, então não precisa passar pelo gateway da outra função
+// (esse existe para o navegador conseguir chamar n8n, não é um requisito
+// para outra edge function fazer o mesmo).
+const N8N_BASE_URL = Deno.env.get("N8N_WEBHOOK_URL") || "https://n8n.grupounibra.com/webhook";
+
+// URL pública do app (com barra no final), para montar o link de "defina sua
+// senha". Sem isso configurado, o email de boas-vindas simplesmente não é
+// disparado — criar usuário continua funcionando normalmente.
+const SITE_URL = Deno.env.get("SITE_URL");
+
 // Mantida em sincronia manual com src/lib/validation.ts — os dois runtimes
 // (browser e Deno) não compartilham módulo, então a regra vive duplicada.
 const PASSWORD_REGEX =
@@ -148,6 +160,52 @@ serve(async (req) => {
         },
         207
       );
+    }
+
+    // Email de boas-vindas com um link de "defina sua senha" — não a senha
+    // que o admin digitou no formulário. Texto puro por email fica salvo
+    // para sempre na caixa de entrada (e nos backups do provedor); um link
+    // do Supabase expira e, sozinho, não dá acesso a quem só interceptou o
+    // email. Melhor esforço: a conta já está criada e utilizável nesse
+    // ponto, então uma falha aqui vira aviso na resposta, não reversão.
+    if (SITE_URL) {
+      try {
+        const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+          type: "recovery",
+          email,
+          options: { redirectTo: `${SITE_URL}redefinir-senha` },
+        });
+
+        if (linkError || !linkData.properties?.action_link) {
+          throw linkError ?? new Error("generateLink não devolveu action_link");
+        }
+
+        // Contrato com o workflow do n8n (a montar do lado de lá, nó de
+        // email): { email, displayName, setPasswordUrl }.
+        const welcomeRes = await fetch(`${N8N_BASE_URL}/send-welcome-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            displayName,
+            setPasswordUrl: linkData.properties.action_link,
+          }),
+        });
+
+        if (!welcomeRes.ok) {
+          throw new Error(`n8n respondeu ${welcomeRes.status}: ${await welcomeRes.text()}`);
+        }
+      } catch (welcomeError: unknown) {
+        console.error("Falha ao disparar email de boas-vindas:", welcomeError);
+        const message = welcomeError instanceof Error ? welcomeError.message : "erro desconhecido";
+        return jsonResponse(
+          {
+            success: false,
+            error: `Usuário criado, mas falha ao enviar o email de boas-vindas: ${message}`,
+          },
+          207
+        );
+      }
     }
 
     return jsonResponse({ success: true, data: { id: created.user.id, email: created.user.email } }, 200);
