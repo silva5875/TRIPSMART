@@ -175,6 +175,7 @@ export type Database = {
           display_name: string | null
           id: string
           imagem_perfil: string | null
+          plan_id: string
         }
         Insert: {
           avatar_url?: string | null
@@ -183,6 +184,7 @@ export type Database = {
           display_name?: string | null
           id: string
           imagem_perfil?: string | null
+          plan_id?: string
         }
         Update: {
           avatar_url?: string | null
@@ -191,6 +193,7 @@ export type Database = {
           display_name?: string | null
           id?: string
           imagem_perfil?: string | null
+          plan_id?: string
         }
         Relationships: []
       }

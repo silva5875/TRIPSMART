@@ -4,3 +4,17 @@ project_id = "dmlazxwzftnbgadfnnsb"
 # Só quem tem sessão válida chega ao código da função; a checagem de admin
 # em si acontece dentro dela (is_admin() via RPC), não aqui.
 verify_jwt = true
+
+[functions.create-checkout-session]
+verify_jwt = true
+
+[functions.create-portal-session]
+verify_jwt = true
+
+[functions.stripe-webhook]
+# Quem chama aqui é o Stripe, não o navegador — não existe um JWT do
+# Supabase pra verificar. A autenticidade da chamada vem da assinatura
+# (Stripe-Signature + STRIPE_WEBHOOK_SECRET), checada dentro da função.
+# Isto só vale para deploy via CLI — se o deploy for pelo Dashboard, tem
+# que desligar "Enforce JWT verification" nas configurações da função lá.
+verify_jwt = false

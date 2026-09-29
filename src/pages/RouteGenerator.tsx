@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import AppHeader from "@/components/AppHeader";
 import {
   Compass, AlertTriangle, Lock,
-  MapPin, Sparkles, Crown, CreditCard, Clock, DollarSign,
+  MapPin, Sparkles, Clock, DollarSign,
   ChevronDown, ChevronUp, Footprints, Info, Lightbulb,
   Calendar, Users, ArrowUp,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import { toast } from "sonner";
 import Seo from "@/components/Seo";
 
 const RouteGenerator = () => {
+  const navigate = useNavigate();
   const [selectedCity, setSelectedCity] = useState("");
   const [selectedMonth, setSelectedMonth] = useState<number>(0);
   const [budget, setBudget] = useState("");
@@ -29,7 +31,6 @@ const RouteGenerator = () => {
   const [itinerary, setItinerary] = useState<RichItinerary | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
-  const [unlocked, setUnlocked] = useState(false);
   const [expandedZones, setExpandedZones] = useState<Record<number, boolean>>({});
   const [showBackToTop, setShowBackToTop] = useState(false);
 
@@ -62,17 +63,11 @@ const RouteGenerator = () => {
 
       setItinerary(result);
       setShowPaywall(true);
-      setUnlocked(false);
     } catch (err) {
       toast.error(getErrorMessage(err, "Não foi possível gerar o roteiro. Tente novamente."));
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleUnlock = () => {
-    setUnlocked(true);
-    setShowPaywall(false);
   };
 
   const toggleZone = (i: number) => {
@@ -262,7 +257,7 @@ const RouteGenerator = () => {
 
               {/* Content area with blur/paywall */}
               <div className="relative">
-                <div className={`space-y-6 transition-all ${showPaywall && !unlocked ? "blur-md pointer-events-none select-none" : ""}`}>
+                <div className={`space-y-6 transition-all ${showPaywall ? "blur-md pointer-events-none select-none" : ""}`}>
 
                   {/* ===== DAY-BY-DAY ===== */}
                   <div className="space-y-4">
@@ -465,7 +460,7 @@ const RouteGenerator = () => {
                 </div>
 
                 {/* ===== PAYWALL OVERLAY ===== */}
-                {showPaywall && !unlocked && (
+                {showPaywall && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                     className="absolute inset-0 flex items-center justify-center">
                     <div className="p-8 rounded-2xl bg-card border-2 border-pe-gold shadow-2xl max-w-md mx-auto text-center space-y-5">
@@ -474,19 +469,13 @@ const RouteGenerator = () => {
                       </div>
                       <h3 className="text-xl font-black text-foreground">Roteiro Gerado com Sucesso!</h3>
                       <p className="text-sm text-muted-foreground">
-                        Desbloqueie o roteiro editorial completo com itinerários detalhados, polos de atrações e dicas práticas.
+                        O roteiro editorial completo, com itinerários detalhados, polos de atrações e dicas
+                        práticas, faz parte dos planos pagos do TripSmart.
                       </p>
-                      <div className="space-y-3">
-                        <Button onClick={handleUnlock}
-                          className="w-full h-12 bg-pe-blue hover:bg-pe-blue/90 text-white border-0 rounded-full font-bold gap-2">
-                          <CreditCard size={18} /> Liberar este roteiro — R$ 12
-                        </Button>
-                        <Button onClick={handleUnlock}
-                          className="w-full h-12 bg-pe-gold hover:bg-pe-gold/90 text-pe-navy border-0 rounded-full font-bold gap-2">
-                          <Crown size={18} /> Assinar VIP — R$ 20/mês
-                        </Button>
-                        <p className="text-[10px] text-muted-foreground">Roteiros ilimitados gerados por IA</p>
-                      </div>
+                      <Button onClick={() => navigate("/planos")}
+                        className="w-full h-12 bg-pe-gold hover:bg-pe-gold/90 text-pe-navy border-0 rounded-full font-bold gap-2">
+                        Ver planos
+                      </Button>
                     </div>
                   </motion.div>
                 )}

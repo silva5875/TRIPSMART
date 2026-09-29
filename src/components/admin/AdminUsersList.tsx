@@ -7,11 +7,15 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAdminUsers, useSetUserBanned, useSetUserRole, type AdminUserDTO } from '@/data/admin';
+import { useAdminUsers, useSetUserBanned, useSetUserPlan, useSetUserRole, type AdminUserDTO } from '@/data/admin';
+import { usePlans } from '@/data/plans';
 import { formatBirthDate, formatExactAge, initials } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 
@@ -27,8 +31,10 @@ const AdminUsersList = () => {
   const { user: me } = useAuth();
   const { toast } = useToast();
   const { data: users = [], isLoading } = useAdminUsers();
+  const { data: plans = [] } = usePlans();
   const setRole = useSetUserRole();
   const setBanned = useSetUserBanned();
+  const setPlan = useSetUserPlan();
 
   const [search, setSearch] = useState('');
   const [pending, setPending] = useState<PendingAction | null>(null);
@@ -71,6 +77,16 @@ const AdminUsersList = () => {
     setPending(null);
   };
 
+  const changePlan = (u: AdminUserDTO, planId: string) => {
+    setPlan.mutate(
+      { userId: u.id, planId },
+      {
+        onSuccess: () => toast({ title: 'Plano atualizado', description: u.displayName ?? u.email ?? '' }),
+        onError,
+      }
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 px-4 py-3 bg-card rounded-2xl border border-border max-w-md" style={{ boxShadow: 'var(--card-shadow)' }}>
@@ -100,6 +116,7 @@ const AdminUsersList = () => {
                 <TableHead>Último acesso</TableHead>
                 <TableHead>Viagens</TableHead>
                 <TableHead>Compartilhados</TableHead>
+                <TableHead>Plano</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -146,6 +163,18 @@ const AdminUsersList = () => {
                     </TableCell>
                     <TableCell className="text-sm font-semibold text-foreground tabular-nums">
                       {u.sharedCount}
+                    </TableCell>
+                    <TableCell>
+                      <Select value={u.planId} onValueChange={(planId) => changePlan(u, planId)} disabled={setPlan.isPending}>
+                        <SelectTrigger className="h-8 w-[130px] text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {plans.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">

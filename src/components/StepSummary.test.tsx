@@ -1,4 +1,5 @@
 import { StrictMode } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -29,6 +30,13 @@ vi.mock('@/data/reviews', () => ({
 vi.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'user-1' } }),
 }));
+// Sem cota carregada (`data: undefined`), o efeito de salvar/gerar segue
+// normalmente — mesmo comportamento "falha aberta" de quando a checagem de
+// cota dá erro de verdade. Testar o bloqueio em si é responsabilidade de um
+// teste próprio, não destes (que cobrem o fluxo de save já existente).
+vi.mock('@/data/plans', () => ({
+  useMyQuota: () => ({ data: undefined, isLoading: false }),
+}));
 // Leaflet não roda em jsdom e não interessa para o fluxo de save.
 vi.mock('@/components/TravelMap', () => ({ default: () => null }));
 
@@ -47,7 +55,9 @@ const renderSummary = (opts?: { strict?: boolean }) => {
   });
   const tree = (
     <QueryClientProvider client={client}>
-      <StepSummary data={viagem} onRestart={() => {}} />
+      <MemoryRouter>
+        <StepSummary data={viagem} onRestart={() => {}} />
+      </MemoryRouter>
     </QueryClientProvider>
   );
   return render(opts?.strict ? <StrictMode>{tree}</StrictMode> : tree);

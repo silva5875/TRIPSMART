@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.116.0";
 import { z } from "https://esm.sh/zod@3.23.8";
 
 const corsHeaders = {
@@ -122,6 +123,42 @@ serve(async (req) => {
       );
     }
     const params = paramsResult.data;
+
+    // Cota de plano — só a ação que de fato gera um roteiro novo consome
+    // cota (as outras, busca de ponto turístico/hospedagem, não). Checagem
+    // servidor-a-servidor: a do cliente (StepSummary.tsx) é sempre
+    // contornável, esta protege a chamada paga de verdade. Client "como o
+    // chamador" — mesmo padrão de admin-create-user — para `auth.uid()`
+    // dentro de get_my_itinerary_quota() enxergar o usuário certo.
+    if (action === "generate-itinerary") {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) {
+        return jsonResponse({ success: false, error: "Missing Authorization header" }, 401);
+      }
+
+      const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+      const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+      const callerClient = createClient(SUPABASE_URL, ANON_KEY, {
+        global: { headers: { Authorization: authHeader } },
+      });
+
+      const { data: quota, error: quotaError } = await callerClient
+        .rpc("get_my_itinerary_quota")
+        .single();
+
+      if (quotaError) {
+        return jsonResponse({ success: false, error: `Falha ao checar cota: ${quotaError.message}` }, 500);
+      }
+      if (quota && quota.remaining <= 0) {
+        return jsonResponse(
+          {
+            success: false,
+            error: `Você já usou os ${quota.limit_per_month} roteiros do plano ${quota.plan_name} este mês. Faça upgrade em /planos para gerar mais.`,
+          },
+          402
+        );
+      }
+    }
 
     const webhookUrl = `${N8N_BASE_URL}${webhookPaths[action]}`;
     console.log(`Calling n8n webhook: ${webhookUrl}`);

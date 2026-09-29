@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Check, RotateCcw, Map, ExternalLink, CalendarDays, Share2, MapPin, Clock, DollarSign, Lightbulb, AlertTriangle, ChevronDown, ChevronUp, Navigation, Info, Instagram, Phone, MessageSquare, FileDown } from "lucide-react";
+import { Check, RotateCcw, Map, ExternalLink, CalendarDays, Share2, MapPin, Clock, DollarSign, Lightbulb, AlertTriangle, ChevronDown, ChevronUp, Navigation, Info, Instagram, Phone, MessageSquare, FileDown, Lock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import TravelMap from "@/components/TravelMap";
@@ -10,6 +11,7 @@ import StarRating from "@/components/StarRating";
 import { generateItinerary } from "@/data/catalog";
 import { shareItinerary } from "@/data/itineraries";
 import { saveTravelRecord, type SavedTravelRecord } from "@/data/travelHistory";
+import { useMyQuota } from "@/data/plans";
 import { useUpsertAccommodationReview, useUpsertActivityReview } from "@/data/reviews";
 import { toItineraryPreferences, usePreferences, useRefreshPreferences } from "@/data/preferences";
 import { formatProtocol, localTransportLabel, monthName, transportLabel } from "@/lib/format";
@@ -26,7 +28,10 @@ interface StepSummaryProps {
 
 const StepSummary = ({ data, onRestart }: StepSummaryProps) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
+  const { data: quota, isLoading: quotaLoading } = useMyQuota();
+  const blockedByQuota = !!quota && quota.remaining <= 0;
   const [saveState, setSaveState] = useState<'saving' | 'saved' | 'error'>('saving');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [protocol, setProtocol] = useState<SavedTravelRecord | null>(null);
@@ -151,11 +156,20 @@ const StepSummary = ({ data, onRestart }: StepSummaryProps) => {
   // Antes o save só disparava depois que a IA devolvia o roteiro, então uma
   // falha do n8n fazia o usuário perder a viagem inteira. A viagem já está
   // completa quando o resumo abre; o roteiro rico é enriquecimento.
+  //
+  // Espera a cota carregar antes de disparar qualquer um dos dois: sem isso,
+  // um usuário no limite do plano ainda gastaria uma chamada de IA (e
+  // ganharia uma linha em travel_history) antes da tela perceber o bloqueio.
+  // Se a checagem de cota falhar (erro de rede, por exemplo), `quota` fica
+  // `undefined` e este efeito segue normalmente — quem trava de verdade é o
+  // servidor, em n8n-webhook; aqui é só a experiência de não gastar uma
+  // chamada à toa quando dá pra saber de antemão.
   useEffect(() => {
+    if (quotaLoading || blockedByQuota) return;
     saveToHistory();
     handleGenerateItinerary();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [quotaLoading, blockedByQuota]);
 
   const saveActivityReview = (activityName: string) => {
     const score = activityRatings[activityName];
@@ -243,6 +257,42 @@ const StepSummary = ({ data, onRestart }: StepSummaryProps) => {
     }
     setExportingPdf(false);
   };
+
+  if (blockedByQuota && quota) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        className="flex flex-col items-center gap-6 text-center w-full max-w-md mx-auto py-8"
+        role="main"
+        aria-label="Limite de roteiros atingido"
+      >
+        <div className="w-14 h-14 rounded-full bg-pe-gold/20 flex items-center justify-center">
+          <Lock size={26} className="text-pe-gold" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl md:text-3xl font-extrabold tracking-display text-foreground">
+            Você usou seus roteiros deste mês
+          </h2>
+          <p className="text-muted-foreground">
+            O plano <strong>{quota.planName}</strong> permite {quota.limitPerMonth} roteiro
+            {quota.limitPerMonth > 1 ? "s" : ""} personalizado{quota.limitPerMonth > 1 ? "s" : ""} por mês, e
+            você já usou todos. Faça upgrade para continuar planejando agora, ou volte no início do próximo mês.
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <Button onClick={() => navigate("/planos")} className="bg-pe-gold hover:bg-pe-gold/90 text-pe-navy border-0 rounded-full font-bold gap-2">
+            Ver planos
+          </Button>
+          <Button variant="outline" onClick={onRestart} className="rounded-full font-bold gap-2">
+            <RotateCcw size={16} /> Recomeçar
+          </Button>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div

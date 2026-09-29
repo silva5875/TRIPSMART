@@ -100,6 +100,8 @@ export interface AdminUserRow {
   age_years: number | null;
   age_months: number | null;
   age_days: number | null;
+  /** Migration 20260924100000. */
+  plan_id: string;
 }
 
 /** Migration 20260916150000. Tabela dedicada — ver comentário na migration
@@ -259,6 +261,96 @@ export interface AdminPlannerProgressDetailRow {
   updated_at: string;
 }
 
+/**
+ * Migration 20260924100000. Catálogo único de planos — fonte de verdade
+ * tanto da página de preços quanto da checagem de cota (`get_my_itinerary_quota`).
+ */
+type PlansTable = {
+  Row: {
+    id: string;
+    name: string;
+    price_cents: number;
+    itinerary_limit_per_month: number;
+    tagline: string | null;
+    display_order: number;
+    is_active: boolean;
+    /** Migration 20260928100000. Nulo para o Free. */
+    stripe_price_id: string | null;
+  };
+  Insert: {
+    id: string;
+    name: string;
+    price_cents: number;
+    itinerary_limit_per_month: number;
+    tagline?: string | null;
+    display_order: number;
+    is_active?: boolean;
+    stripe_price_id?: string | null;
+  };
+  Update: {
+    id?: string;
+    name?: string;
+    price_cents?: number;
+    itinerary_limit_per_month?: number;
+    tagline?: string | null;
+    display_order?: number;
+    is_active?: boolean;
+    stripe_price_id?: string | null;
+  };
+  Relationships: [];
+};
+
+/**
+ * Migration 20260928100000. Só a service_role escreve aqui (edge function
+ * stripe-webhook) — sem política de INSERT/UPDATE para authenticated, por
+ * isso não existe um `useX()` mutation de escrita para esta tabela no
+ * front; ela só é lida (ver useSubscription em src/data/plans).
+ */
+type SubscriptionsTable = {
+  Row: {
+    user_id: string;
+    stripe_customer_id: string | null;
+    stripe_subscription_id: string | null;
+    status: string;
+    current_period_end: string | null;
+    updated_at: string;
+  };
+  Insert: {
+    user_id: string;
+    stripe_customer_id?: string | null;
+    stripe_subscription_id?: string | null;
+    status?: string;
+    current_period_end?: string | null;
+    updated_at?: string;
+  };
+  Update: {
+    user_id?: string;
+    stripe_customer_id?: string | null;
+    stripe_subscription_id?: string | null;
+    status?: string;
+    current_period_end?: string | null;
+    updated_at?: string;
+  };
+  Relationships: [];
+};
+
+/** Migration 20260924100000. Captura de interesse nos planos pagos — sem
+ * gateway de pagamento ainda, é o que o botão "quero esse plano" grava. */
+type PlanInterestTable = {
+  Row: { id: string; user_id: string; plan_id: string; created_at: string };
+  Insert: { id?: string; user_id: string; plan_id: string; created_at?: string };
+  Update: { id?: string; user_id?: string; plan_id?: string; created_at?: string };
+  Relationships: [];
+};
+
+export interface MyItineraryQuota {
+  plan_id: string;
+  plan_name: string;
+  limit_per_month: number;
+  used_this_month: number;
+  remaining: number;
+}
+
 export type Database = {
   __InternalSupabase: GeneratedDatabase['__InternalSupabase'];
   public: {
@@ -279,6 +371,9 @@ export type Database = {
       dtnascimento: DtnascimentoTable;
       planner_progress: PlannerProgressTable;
       planner_step_events: PlannerStepEventsTable;
+      plans: PlansTable;
+      plan_interest: PlanInterestTable;
+      subscriptions: SubscriptionsTable;
     };
     Views: GeneratedPublic['Views'];
     Functions: {
@@ -341,6 +436,14 @@ export type Database = {
       admin_planner_progress_detail: {
         Args: Record<string, never>;
         Returns: AdminPlannerProgressDetailRow[];
+      };
+      get_my_itinerary_quota: {
+        Args: Record<string, never>;
+        Returns: MyItineraryQuota[];
+      };
+      admin_set_user_plan: {
+        Args: { target_user_id: string; new_plan_id: string };
+        Returns: void;
       };
     };
     Enums: GeneratedPublic['Enums'];

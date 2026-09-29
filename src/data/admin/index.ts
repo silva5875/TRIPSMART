@@ -208,6 +208,7 @@ export interface AdminUserDTO {
   ageYears: number | null;
   ageMonths: number | null;
   ageDays: number | null;
+  planId: string;
 }
 
 function toAdminUserDTO(row: AdminUserRow): AdminUserDTO {
@@ -227,6 +228,7 @@ function toAdminUserDTO(row: AdminUserRow): AdminUserDTO {
     ageYears: row.age_years,
     ageMonths: row.age_months,
     ageDays: row.age_days,
+    planId: row.plan_id,
   };
 }
 
@@ -316,6 +318,25 @@ export function useSetUserBanned() {
       const { error } = await supabase.rpc('admin_set_user_banned', {
         target_user_id: userId,
         banned,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers });
+    },
+  });
+}
+
+/** Único jeito de alguém virar Mochileiro/Explorador enquanto não há
+ * pagamento automático — o admin atribui manualmente pela aba Usuários. */
+export function useSetUserPlan() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId, planId }: { userId: string; planId: string }) => {
+      const { error } = await supabase.rpc('admin_set_user_plan', {
+        target_user_id: userId,
+        new_plan_id: planId,
       });
       if (error) throw error;
     },

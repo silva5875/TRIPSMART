@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +19,7 @@ import {
   useUpdateMyBirthDate, useUpdateProfile, useUploadProfileImage,
 } from '@/data/profiles';
 import { useIsAdmin } from '@/data/admin';
+import { useManageSubscription, useMyQuota } from '@/data/plans';
 import { formatBirthDate, initials as initialOf } from '@/lib/format';
 import { isAtLeast18 } from '@/lib/validation';
 import { getErrorMessage } from '@/lib/errors';
@@ -31,10 +33,12 @@ const Profile = () => {
   const { data: profile, isLoading } = useProfile();
   const { data: stats } = useProfileStats();
   const { data: isAdmin } = useIsAdmin();
+  const { data: quota } = useMyQuota();
   const { data: myBirthDate } = useMyBirthDate();
   const updateProfile = useUpdateProfile();
   const updateMyBirthDate = useUpdateMyBirthDate();
   const uploadProfileImage = useUploadProfileImage();
+  const manageSubscription = useManageSubscription();
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const [displayName, setDisplayName] = useState('');
@@ -159,6 +163,29 @@ const Profile = () => {
           </div>
           <h1 className="text-2xl font-black text-foreground mt-4">{displayName || 'Viajante'}</h1>
           <p className="text-sm text-muted-foreground">{user?.email}</p>
+          {quota && (
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
+              <Badge className="bg-pe-gold text-pe-navy border-0">Plano {quota.planName}</Badge>
+              <button onClick={() => navigate('/planos')} className="text-xs font-bold text-primary hover:underline">
+                {quota.usedThisMonth}/{quota.limitPerMonth} roteiros este mês · Ver planos
+              </button>
+              {quota.planId !== 'free' && (
+                <button
+                  onClick={() =>
+                    manageSubscription.mutate(undefined, {
+                      onSuccess: (url) => { window.location.href = url; },
+                      onError: (error) =>
+                        toast({ title: 'Erro', description: getErrorMessage(error, 'Não foi possível abrir o gerenciamento da assinatura. Tente novamente.'), variant: 'destructive' }),
+                    })
+                  }
+                  disabled={manageSubscription.isPending}
+                  className="text-xs font-bold text-muted-foreground hover:underline"
+                >
+                  {manageSubscription.isPending ? 'Abrindo...' : 'Gerenciar assinatura'}
+                </button>
+              )}
+            </div>
+          )}
         </motion.div>
 
         {/* Stats */}

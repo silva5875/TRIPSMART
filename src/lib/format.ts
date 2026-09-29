@@ -12,6 +12,12 @@ const isUndecided = (id: string | null | undefined) => !id || id === 'undecided'
 
 export const formatCurrency = (value: number) => `R$ ${value.toLocaleString('pt-BR')}`;
 
+/** Preço de plano, guardado em centavos no banco (evita erro de ponto flutuante). */
+export const formatPriceCents = (cents: number) =>
+  cents === 0
+    ? 'Grátis'
+    : `R$ ${(cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 export const monthName = (month: number | null | undefined) =>
   month && month >= 1 && month <= 12 ? monthNames[month - 1] : NAO_DEFINIDO;
 

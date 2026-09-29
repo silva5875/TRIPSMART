@@ -44,4 +44,7 @@ export const queryKeys = {
   adminReviews: (limit: number) => ['admin-reviews', limit] as const,
   adminPlannerFunnel: ['admin-planner-funnel'] as const,
   adminPlannerStuckUsers: ['admin-planner-stuck-users'] as const,
+
+  plans: ['plans'] as const,
+  myItineraryQuota: (userId: string) => ['my-itinerary-quota', userId] as const,
 } as const;

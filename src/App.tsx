@@ -9,6 +9,7 @@ import { CookieConsentProvider } from "@/contexts/CookieConsentContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PageViewTracker from "@/components/PageViewTracker";
 import CookieConsentBanner from "@/components/CookieConsentBanner";
+import PlanBanner from "@/components/PlanBanner";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
@@ -20,6 +21,7 @@ import Profile from "./pages/Profile";
 import ActivityDetail from "./pages/ActivityDetail";
 import RouteGenerator from "./pages/RouteGenerator";
 import Admin from "./pages/Admin";
+import Plans from "./pages/Plans";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,8 +56,10 @@ const App = () => (
                 <Route path="/atividade/:cityId/:spotId" element={<ActivityDetail />} />
                 <Route path="/gerador" element={<RouteGenerator />} />
                 <Route path="/admin" element={<Admin />} />
+                <Route path="/planos" element={<Plans />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              <PlanBanner />
             </AuthProvider>
           </BrowserRouter>
           <CookieConsentBanner />
