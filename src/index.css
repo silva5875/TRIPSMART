@@ -6,7 +6,7 @@
 
 @layer base {
   :root {
-    /* Pernambuco: Azul profundo, Vermelho vibrante, Dourado quente */
+    /* Pernambuco: Azul profundo, Verde jade, Dourado quente */
     --background: 220 25% 96%;
     --foreground: 222 47% 11%;
 
@@ -25,7 +25,7 @@
     --muted: 220 14% 90%;
     --muted-foreground: 220 9% 46%;
 
-    --accent: 355 85% 52%;
+    --accent: 142 76% 36%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
@@ -48,22 +48,22 @@
 
     /* Semantic PE colors */
     --pe-blue: 217 91% 40%;
-    --pe-red: 355 85% 52%;
+    --pe-red: 142 76% 36%; /* verde jade — nome da variável ficou (usado em muitos lugares), só a cor mudou */
     --pe-gold: 42 100% 50%;
     --pe-navy: 217 91% 18%;
     --pe-cream: 40 60% 96%;
     --pe-blue-light: 217 80% 94%;
-    --pe-red-light: 355 80% 95%;
+    --pe-red-light: 142 76% 94%;
     --pe-gold-light: 42 90% 93%;
 
-    --demand-high: 355 85% 52%;
+    --demand-high: 142 76% 36%;
     --demand-moderate: 42 100% 50%;
     --demand-low: 160 84% 39%;
 
     /* Séries dos gráficos do painel administrativo — mesma paleta da marca */
     --chart-1: 217 91% 40%;  /* pe-blue */
     --chart-2: 42 100% 50%;  /* pe-gold */
-    --chart-3: 355 85% 52%;  /* pe-red */
+    --chart-3: 142 76% 36%;  /* pe-red (verde jade) */
     --chart-4: 160 84% 39%;  /* demand-low */
 
     --card-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px -8px rgba(0,0,0,0.1);
@@ -95,7 +95,7 @@
     --muted: 222 28% 20%;
     --muted-foreground: 220 18% 64%;
 
-    --accent: 355 88% 63%;
+    --accent: 142 70% 45%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 45%;
@@ -115,21 +115,21 @@
     --sidebar-ring: 42 100% 58%;
 
     --pe-blue: 217 92% 62%;
-    --pe-red: 355 88% 63%;
+    --pe-red: 142 70% 45%;
     --pe-gold: 42 100% 58%;
     --pe-navy: 220 60% 13%;
     --pe-cream: 222 26% 19%;
     --pe-blue-light: 217 62% 21%;
-    --pe-red-light: 355 58% 19%;
+    --pe-red-light: 142 55% 18%;
     --pe-gold-light: 42 65% 19%;
 
-    --demand-high: 355 88% 63%;
+    --demand-high: 142 70% 45%;
     --demand-moderate: 42 100% 58%;
     --demand-low: 160 80% 45%;
 
     --chart-1: 217 92% 62%;
     --chart-2: 42 100% 58%;
-    --chart-3: 355 88% 63%;
+    --chart-3: 142 70% 45%;
     --chart-4: 160 80% 45%;
   }
 }
