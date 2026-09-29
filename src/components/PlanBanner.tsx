@@ -11,7 +11,7 @@ const DISMISSED_KEY = 'tripsmart:plan-banner-dismissed';
  * redundante (a própria página de planos). */
 const HIDDEN_ON = ['/auth', '/redefinir-senha', '/admin', '/planejar', '/planos'];
 
-const ROTATE_MS = 4500;
+const ROTATE_MS = 3000;
 
 /**
  * Banner promocional no rodapé — não fixo (não cobre conteúdo, diferente do

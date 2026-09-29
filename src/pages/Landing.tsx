@@ -82,6 +82,10 @@ type PlanAdvantage = {
   onClick: () => void;
 };
 
+// Usado tanto no setTimeout do autoplay quanto na duração da barra de
+// progresso abaixo do carrossel — os dois têm que andar juntos.
+const PLAN_CAROUSEL_AUTOPLAY_MS = 4000;
+
 const travelTips = [
   {
     icon: Sun,
@@ -218,7 +222,7 @@ const Landing = () => {
   // que reinicia pela mesma mudança de activeAdvantageIndex.
   useEffect(() => {
     if (!planCarouselApi || planAdvantages.length < 2) return;
-    const id = setTimeout(() => planCarouselApi.scrollNext(), 6000);
+    const id = setTimeout(() => planCarouselApi.scrollNext(), PLAN_CAROUSEL_AUTOPLAY_MS);
     return () => clearTimeout(id);
   }, [planCarouselApi, planAdvantages.length, activeAdvantageIndex]);
 
@@ -772,7 +776,7 @@ const Landing = () => {
               </p>
             </div>
 
-            <Carousel setApi={setPlanCarouselApi} opts={{ loop: true }} className="max-w-3xl mx-auto">
+            <Carousel setApi={setPlanCarouselApi} opts={{ loop: true, duration: 16 }} className="max-w-3xl mx-auto">
               <CarouselContent>
                 {planAdvantages.map((adv, i) => {
                   const isActive = i === activeAdvantageIndex;
@@ -852,7 +856,7 @@ const Landing = () => {
                     className="h-full rounded-full bg-pe-gold"
                     initial={{ width: "0%" }}
                     animate={{ width: "100%" }}
-                    transition={{ duration: 6, ease: "linear" }}
+                    transition={{ duration: PLAN_CAROUSEL_AUTOPLAY_MS / 1000, ease: "linear" }}
                   />
                 </div>
                 <div className="flex justify-center gap-1.5 mt-4" role="tablist" aria-label="Vantagens por plano">
