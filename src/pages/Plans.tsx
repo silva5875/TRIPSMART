@@ -241,6 +241,23 @@ const Plans = () => {
           )}
         </motion.div>
 
+        {isLoading ? (
+          <p className="text-center text-muted-foreground py-12">Carregando planos...</p>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-3">
+            {plans.map((plan, i) => (
+              <motion.div key={plan.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
+                <PlanCard
+                  plan={plan}
+                  isCurrent={quota?.planId === plan.id}
+                  isPaidHighlight={plan.id === 'explorador'}
+                  alreadyOnPaidPlan={!!quota && quota.planId !== 'free'}
+                />
+              </motion.div>
+            ))}
+          </div>
+        )}
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -266,23 +283,6 @@ const Plans = () => {
             ))}
           </div>
         </motion.div>
-
-        {isLoading ? (
-          <p className="text-center text-muted-foreground py-12">Carregando planos...</p>
-        ) : (
-          <div className="grid gap-6 md:grid-cols-3">
-            {plans.map((plan, i) => (
-              <motion.div key={plan.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}>
-                <PlanCard
-                  plan={plan}
-                  isCurrent={quota?.planId === plan.id}
-                  isPaidHighlight={plan.id === 'explorador'}
-                  alreadyOnPaidPlan={!!quota && quota.planId !== 'free'}
-                />
-              </motion.div>
-            ))}
-          </div>
-        )}
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}

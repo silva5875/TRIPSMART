@@ -280,6 +280,14 @@ const Landing = () => {
           </button>
           <div className="flex items-center gap-2">
             <ThemeToggle />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/planos")}
+              className="hidden sm:inline-flex gap-1.5 text-xs font-bold text-pe-gold border border-pe-gold/50 hover:bg-pe-gold/10 hover:text-pe-gold"
+            >
+              <Sparkles size={14} /> Planos
+            </Button>
             {user ? (
               <>
                 {/* Telas médias/grandes: todos os links na barra. Abaixo de
@@ -350,6 +358,15 @@ const Landing = () => {
                           className="justify-start gap-2.5 bg-pe-gold hover:bg-pe-gold/90 text-pe-navy border-0 rounded-full font-bold mb-3"
                         >
                           <Compass size={16} /> Planejar
+                        </Button>
+                      </SheetClose>
+                      <SheetClose asChild>
+                        <Button
+                          variant="ghost"
+                          onClick={() => navigate("/planos")}
+                          className="justify-start gap-2.5 text-pe-gold border border-pe-gold/50 hover:bg-pe-gold/10 hover:text-pe-gold mb-3"
+                        >
+                          <Sparkles size={16} /> Planos
                         </Button>
                       </SheetClose>
                       <SheetClose asChild>
