@@ -15,6 +15,7 @@ import { useMyQuota } from "@/data/plans";
 import { useUpsertAccommodationReview, useUpsertActivityReview } from "@/data/reviews";
 import { toItineraryPreferences, usePreferences, useRefreshPreferences } from "@/data/preferences";
 import { formatProtocol, localTransportLabel, monthName, transportLabel } from "@/lib/format";
+import { resolveSpotIcon } from "@/lib/spotIcons";
 import { exportElementToPdf, slugifyForFileName } from "@/lib/pdf";
 import { isSafeExternalUrl } from "@/lib/validation";
 import { getErrorMessage } from "@/lib/errors";
@@ -342,11 +343,14 @@ const StepSummary = ({ data, onRestart }: StepSummaryProps) => {
           <div className="pt-2 border-t border-border">
             <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Atividades Selecionadas</span>
             <div className="flex flex-wrap gap-2 mt-2">
-              {data.selectedSpots.map((s) => (
-                <span key={s.id} className="text-xs font-bold px-3 py-1 rounded-full bg-primary/10 text-primary">
-                  {s.imageEmoji} {s.name}
-                </span>
-              ))}
+              {data.selectedSpots.map((s) => {
+                const Icon = resolveSpotIcon(s.iconKey);
+                return (
+                  <span key={s.id} className="flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full bg-primary/10 text-primary">
+                    <Icon size={12} /> {s.name}
+                  </span>
+                );
+              })}
             </div>
           </div>
         )}

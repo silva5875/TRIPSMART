@@ -22,6 +22,7 @@ import {
 import {
   budgetLabel, formatCurrency, formatProtocol, groupTypeLabel, localTransportLabel, monthName, transportLabel,
 } from '@/lib/format';
+import { resolveSpotIcon } from '@/lib/spotIcons';
 import { exportElementToPdf, slugifyForFileName } from '@/lib/pdf';
 import { getErrorMessage } from '@/lib/errors';
 import type { TouristSpot } from '@/types/travel';
@@ -242,7 +243,9 @@ const TravelHistory = () => {
                     {spots.map((spot) => (
                       <div key={spot.id} className="p-3 rounded-xl border border-border bg-card space-y-2">
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl">{spot.imageEmoji}</span>
+                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            {(() => { const Icon = resolveSpotIcon(spot.iconKey); return <Icon size={18} className="text-primary" />; })()}
+                          </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-card-foreground truncate">{spot.name}</p>
                             <p className="text-xs text-muted-foreground truncate">{spot.description}</p>

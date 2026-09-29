@@ -3,7 +3,8 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Search, Star, Check, Loader2, Flame } from "lucide-react";
-import { pernambucoCities, monthNames, categoryLabels } from "@/data/mockData";
+import { pernambucoCities, monthNames, categoryLabels, categoryIcons } from "@/data/mockData";
+import { resolveSpotIcon } from "@/lib/spotIcons";
 import StarRating from "@/components/StarRating";
 import { useTouristSpots, type CatalogContext } from "@/data/catalog";
 import { useActivityRatingAverages } from "@/data/reviews";
@@ -162,7 +163,9 @@ const StepCity = ({
                     className="w-14 h-14 rounded-xl object-cover flex-shrink-0"
                   />
                 ) : (
-                  <span className="text-2xl">{city.imageEmoji}</span>
+                  <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    {(() => { const Icon = resolveSpotIcon(city.iconKey); return <Icon size={24} className="text-primary" />; })()}
+                  </div>
                 )}
                 <div>
                   <h3 className="text-lg font-bold text-card-foreground">{city.name}</h3>
@@ -177,8 +180,8 @@ const StepCity = ({
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle className="text-2xl font-extrabold tracking-display">
-              {selectedCity?.imageEmoji} {selectedCity?.name}
+            <SheetTitle className="text-2xl font-extrabold tracking-display flex items-center gap-2">
+              {selectedCity && (() => { const Icon = resolveSpotIcon(selectedCity.iconKey); return <Icon size={22} className="text-primary" />; })()} {selectedCity?.name}
             </SheetTitle>
             <p className="text-sm text-muted-foreground">
               Atividades
@@ -248,7 +251,9 @@ const StepCity = ({
                             className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
                           />
                         ) : (
-                          <span className="text-2xl mt-0.5 flex-shrink-0">{spot.imageEmoji}</span>
+                          <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            {(() => { const Icon = resolveSpotIcon(spot.iconKey); return <Icon size={26} className="text-primary" />; })()}
+                          </div>
                         )}
                         <div>
                           <h4 className="font-bold text-foreground">{spot.name}</h4>
@@ -265,7 +270,11 @@ const StepCity = ({
                               </span>
                             )}
                             {spot.category && (
-                              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-accent/10 text-accent">
+                              <span className="flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-accent/10 text-accent">
+                                {(() => {
+                                  const CategoryIcon = categoryIcons[spot.category];
+                                  return CategoryIcon ? <CategoryIcon size={11} /> : null;
+                                })()}
                                 {categoryLabels[spot.category]}
                               </span>
                             )}

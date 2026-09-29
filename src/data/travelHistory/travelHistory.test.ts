@@ -17,7 +17,7 @@ const viagem: TravelState = {
   city: 'porto-galinhas',
   cityName: 'Porto de Galinhas',
   selectedSpots: [
-    { id: 's1', name: 'Piscinas naturais', description: '', peakMonths: [1], rating: 4.8, lat: -8.5, lng: -35, imageEmoji: '🐠', category: 'praia' },
+    { id: 's1', name: 'Piscinas naturais', description: '', peakMonths: [1], rating: 4.8, lat: -8.5, lng: -35, iconKey: 'Fish', category: 'praia' },
   ],
   accommodation: null,
   localTransport: 'publico',

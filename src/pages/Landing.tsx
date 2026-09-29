@@ -41,13 +41,14 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { pernambucoCities, spotsByCity, categoryLabels, pernambucoImages } from "@/data/mockData";
+import { pernambucoCities, spotsByCity, categoryLabels, categoryIcons, pernambucoImages } from "@/data/mockData";
 import heroPernambuco from "@/assets/hero-pernambuco.jpg";
 import Seo from "@/components/Seo";
 import { siteUrl } from "@/lib/site";
 import { usePlannerProgress } from "@/data/plannerProgress";
 import { usePlans } from "@/data/plans";
 import { formatPriceCents } from "@/lib/format";
+import { resolveSpotIcon } from "@/lib/spotIcons";
 import {
   Carousel,
   CarouselContent,
@@ -58,12 +59,12 @@ import {
 } from "@/components/ui/carousel";
 
 const featuredDestinations = [
-  { name: "Recife", cityId: "recife", emoji: "🏙️", imageUrl: pernambucoImages.recife, tag: "Capital", color: "bg-pe-blue", desc: "Marco Zero, Brennand e praias urbanas" },
-  { name: "Fernando de Noronha", cityId: "noronha", emoji: "🐢", imageUrl: pernambucoImages.noronha, tag: "Paraíso", color: "bg-pe-red", desc: "As praias mais bonitas do Brasil" },
-  { name: "Porto de Galinhas", cityId: "porto-galinhas", emoji: "🏖️", imageUrl: pernambucoImages["porto-galinhas"], tag: "Praias", color: "bg-pe-gold", desc: "Piscinas naturais e jangadas" },
-  { name: "Olinda", cityId: "olinda", emoji: "🎭", imageUrl: pernambucoImages.olinda, tag: "Cultura", color: "bg-pe-navy", desc: "Ladeiras históricas e carnaval" },
-  { name: "Caruaru", cityId: "caruaru", emoji: "🎶", imageUrl: pernambucoImages.caruaru, tag: "Forró", color: "bg-pe-red", desc: "Feira, São João e Alto do Moura" },
-  { name: "Gravatá", cityId: "gravata", emoji: "🌄", imageUrl: pernambucoImages.gravata, tag: "Aventura", color: "bg-pe-blue", desc: "Trilhas e rapel na serra" },
+  { name: "Recife", cityId: "recife", iconKey: "Building2", imageUrl: pernambucoImages.recife, tag: "Capital", color: "bg-pe-blue", desc: "Marco Zero, Brennand e praias urbanas" },
+  { name: "Fernando de Noronha", cityId: "noronha", iconKey: "Turtle", imageUrl: pernambucoImages.noronha, tag: "Paraíso", color: "bg-pe-red", desc: "As praias mais bonitas do Brasil" },
+  { name: "Porto de Galinhas", cityId: "porto-galinhas", iconKey: "Palmtree", imageUrl: pernambucoImages["porto-galinhas"], tag: "Praias", color: "bg-pe-gold", desc: "Piscinas naturais e jangadas" },
+  { name: "Olinda", cityId: "olinda", iconKey: "Drama", imageUrl: pernambucoImages.olinda, tag: "Cultura", color: "bg-pe-navy", desc: "Ladeiras históricas e carnaval" },
+  { name: "Caruaru", cityId: "caruaru", iconKey: "Music", imageUrl: pernambucoImages.caruaru, tag: "Forró", color: "bg-pe-red", desc: "Feira, São João e Alto do Moura" },
+  { name: "Gravatá", cityId: "gravata", iconKey: "Sunrise", imageUrl: pernambucoImages.gravata, tag: "Aventura", color: "bg-pe-blue", desc: "Trilhas e rapel na serra" },
 ];
 
 type PlanAdvantage = {
@@ -538,8 +539,8 @@ const Landing = () => {
                 {dest.imageUrl ? (
                   <img src={dest.imageUrl} alt={dest.name} loading="lazy" className="h-40 md:h-48 w-full object-cover" />
                 ) : (
-                  <div className={`h-40 md:h-48 ${dest.color} flex items-center justify-center text-7xl md:text-8xl`}>
-                    {dest.emoji}
+                  <div className={`h-40 md:h-48 ${dest.color} flex items-center justify-center`}>
+                    {(() => { const Icon = resolveSpotIcon(dest.iconKey); return <Icon size={64} className="text-white" strokeWidth={1.25} />; })()}
                   </div>
                 )}
                 <div className="p-5">
@@ -626,8 +627,8 @@ const Landing = () => {
                 {spot.imageUrl ? (
                   <img src={spot.imageUrl} alt={spot.name} className="w-full h-40 object-cover" />
                 ) : (
-                  <div className="w-full h-40 bg-section-blue flex items-center justify-center text-5xl">
-                    {spot.imageEmoji}
+                  <div className="w-full h-40 bg-section-blue flex items-center justify-center">
+                    {(() => { const Icon = resolveSpotIcon(spot.iconKey); return <Icon size={44} className="text-primary" />; })()}
                   </div>
                 )}
                 <div className="p-4">
@@ -648,7 +649,11 @@ const Landing = () => {
                           : ""}
                     </span>
                     {spot.category && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pe-blue/10 text-primary">
+                      <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-pe-blue/10 text-primary">
+                        {(() => {
+                          const CategoryIcon = categoryIcons[spot.category];
+                          return CategoryIcon ? <CategoryIcon size={10} /> : null;
+                        })()}
                         {categoryLabels[spot.category]}
                       </span>
                     )}

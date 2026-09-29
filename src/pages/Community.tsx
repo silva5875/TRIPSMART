@@ -12,6 +12,7 @@ import {
   useToggleLike, useToggleSave, type FeedItinerary,
 } from '@/data/itineraries';
 import { initials, monthName } from '@/lib/format';
+import { resolveSpotIcon } from '@/lib/spotIcons';
 import { getErrorMessage } from '@/lib/errors';
 
 const Community = () => {
@@ -181,9 +182,14 @@ const ItineraryCard = ({
 
         {it.selected_spots?.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-3">
-            {it.selected_spots.slice(0, 5).map((s) => (
-              <span key={s.id} className="text-xs px-2 py-0.5 rounded-full bg-section-blue text-primary font-semibold">{s.imageEmoji} {s.name}</span>
-            ))}
+            {it.selected_spots.slice(0, 5).map((s) => {
+              const Icon = resolveSpotIcon(s.iconKey);
+              return (
+                <span key={s.id} className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-section-blue text-primary font-semibold">
+                  <Icon size={11} /> {s.name}
+                </span>
+              );
+            })}
             {it.selected_spots.length > 5 && <span className="text-xs text-muted-foreground">+{it.selected_spots.length - 5}</span>}
           </div>
         )}

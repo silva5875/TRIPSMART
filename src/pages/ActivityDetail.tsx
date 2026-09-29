@@ -2,7 +2,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Star, MapPin, Calendar, DollarSign, Compass } from 'lucide-react';
-import { pernambucoCities, spotsByCity, categoryLabels, monthNames } from '@/data/mockData';
+import { pernambucoCities, spotsByCity, categoryLabels, categoryIcons, monthNames } from '@/data/mockData';
+import { resolveSpotIcon } from '@/lib/spotIcons';
 import AppHeader from '@/components/AppHeader';
 import Seo from '@/components/Seo';
 
@@ -66,15 +67,19 @@ const ActivityDetail = () => {
         {spot.imageUrl ? (
           <img src={spot.imageUrl} alt={spot.name} className="w-full h-64 md:h-96 object-cover" />
         ) : (
-          <div className="w-full h-64 md:h-96 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-9xl">
-            {spot.imageEmoji}
+          <div className="w-full h-64 md:h-96 bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+            {(() => { const Icon = resolveSpotIcon(spot.iconKey); return <Icon size={96} className="text-primary" strokeWidth={1.25} />; })()}
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12">
           <div className="max-w-5xl mx-auto">
             {spot.category && (
-              <span className="text-xs font-bold px-3 py-1 rounded-full bg-primary/20 text-primary backdrop-blur-sm">
+              <span className="flex items-center gap-1 w-fit text-xs font-bold px-3 py-1 rounded-full bg-primary/20 text-primary backdrop-blur-sm">
+                {(() => {
+                  const CategoryIcon = categoryIcons[spot.category];
+                  return CategoryIcon ? <CategoryIcon size={12} /> : null;
+                })()}
                 {categoryLabels[spot.category]}
               </span>
             )}
@@ -183,7 +188,9 @@ const ActivityDetail = () => {
                       onClick={() => navigate(`/atividade/${cityId}/${s.id}`)}
                       className="w-full flex items-center gap-3 p-3 rounded-xl border border-border hover:border-primary/40 transition-all text-left"
                     >
-                      <span className="text-2xl">{s.imageEmoji}</span>
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        {(() => { const Icon = resolveSpotIcon(s.iconKey); return <Icon size={18} className="text-primary" />; })()}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-card-foreground truncate">{s.name}</p>
                         <p className="text-xs text-muted-foreground">

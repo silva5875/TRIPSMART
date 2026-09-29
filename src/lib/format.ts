@@ -33,19 +33,19 @@ export const budgetRangeFor = (budget: number) =>
 
 export const budgetLabel = (budget: number) => {
   const range = budgetRangeFor(budget);
-  return range ? `${range.emoji} ${range.label}` : formatCurrency(budget);
+  return range ? range.label : formatCurrency(budget);
 };
 
 export const transportLabel = (id: string | null | undefined) => {
   if (isUndecided(id)) return NAO_DEFINIDO;
   const option = transportOptions.find((o) => o.id === id);
-  return option ? `${option.emoji} ${option.label}` : id!;
+  return option ? option.label : id!;
 };
 
 export const localTransportLabel = (id: string | null | undefined) => {
   if (isUndecided(id)) return NAO_DEFINIDO;
   const option = localTransportOptions.find((o) => o.id === id);
-  return option ? `${option.emoji} ${option.label}` : id!;
+  return option ? option.label : id!;
 };
 
 export const initials = (name: string | null | undefined) => (name || 'U')[0].toUpperCase();

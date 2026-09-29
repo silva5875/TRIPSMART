@@ -6,7 +6,9 @@ export interface TouristSpot {
   rating: number;
   lat: number;
   lng: number;
-  imageEmoji: string;
+  /** Chave pro registro em `@/lib/spotIcons` — nunca o componente em si (ver
+   *  o comentário lá: este objeto passa por `toJson()` pra dentro do banco). */
+  iconKey: string;
   imageUrl?: string;
   avgCostPerPerson?: number;
   category?: 'turismo' | 'praia' | 'trilha' | 'entretenimento' | 'cultura' | 'natureza';
@@ -41,7 +43,10 @@ export interface CityData {
   id: string;
   name: string;
   description: string;
-  imageEmoji: string;
+  /** Mesma ideia de `TouristSpot.iconKey` — chave pro registro em
+   *  `@/lib/spotIcons`, não o componente (consistência entre os dois tipos,
+   *  mesmo `CityData` hoje não passando por `toJson()`). */
+  iconKey: string;
   imageUrl?: string;
   lat: number;
   lng: number;

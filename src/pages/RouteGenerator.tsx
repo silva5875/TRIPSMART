@@ -16,6 +16,7 @@ import { budgetRanges, monthNames, pernambucoCities } from "@/data/mockData";
 import { generateRichItinerary } from "@/data/catalog";
 import { budgetLabel as budgetLabelFor } from "@/lib/format";
 import { getErrorMessage } from "@/lib/errors";
+import { resolveSpotIcon } from "@/lib/spotIcons";
 import type { RichItinerary } from "@/types/richItinerary";
 import { toast } from "sonner";
 import Seo from "@/components/Seo";
@@ -125,7 +126,7 @@ const RouteGenerator = () => {
                   className={`p-3 rounded-xl text-sm font-bold text-left transition-all border ${
                     selectedCity === city.id ? "bg-pe-blue text-white border-pe-blue" : "bg-background border-border text-foreground hover:border-pe-blue/40"
                   }`}>
-                  <span className="mr-1.5">{city.imageEmoji}</span>{city.name}
+                  {(() => { const Icon = resolveSpotIcon(city.iconKey); return <Icon size={14} className="inline mr-1.5 -mt-0.5" />; })()}{city.name}
                 </button>
               ))}
             </div>
@@ -190,7 +191,7 @@ const RouteGenerator = () => {
                   className={`p-3 rounded-xl text-sm font-bold text-left transition-all border ${
                     budgetLabel === b.label ? "bg-pe-gold text-pe-navy border-pe-gold" : "bg-background border-border text-foreground hover:border-pe-gold/40"
                   }`}>
-                  <span className="mr-1">{b.emoji}</span> {b.label}
+                  <b.icon size={13} className="inline mr-1 -mt-0.5" /> {b.label}
                   <span className="block text-[10px] mt-0.5 opacity-70">{b.range}</span>
                 </button>
               ))}

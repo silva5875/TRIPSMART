@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Calendar, HelpCircle } from "lucide-react";
-import { monthNames, monthEmojis } from "@/data/mockData";
+import { monthNames, monthIcons } from "@/data/mockData";
 
 interface StepMonthProps {
   onNext: (month: number) => void;
@@ -45,7 +45,10 @@ const StepMonth = ({ onNext }: StepMonthProps) => {
               }`}
               style={{ boxShadow: isCurrent ? undefined : 'var(--card-shadow)' }}
             >
-              <span className="text-2xl block" aria-hidden="true">{monthEmojis[i]}</span>
+              {(() => {
+                const MonthIcon = monthIcons[i];
+                return <MonthIcon size={22} className="mx-auto text-primary" aria-hidden="true" />;
+              })()}
               <span className="text-sm font-bold text-foreground block mt-1">{name}</span>
               {isCurrent && (
                 <span className="absolute -top-2 -right-2 text-[10px] font-bold px-2 py-0.5 rounded-full gradient-pe text-primary-foreground">

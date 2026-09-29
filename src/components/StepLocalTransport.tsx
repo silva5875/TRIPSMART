@@ -38,7 +38,9 @@ const StepLocalTransport = ({ onNext }: StepLocalTransportProps) => {
             className="flex items-center gap-4 p-5 rounded-2xl border border-border bg-card text-left hover:border-primary/40 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             style={{ boxShadow: 'var(--card-shadow)' }}
           >
-            <span className="text-3xl" aria-hidden="true">{t.emoji}</span>
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0" aria-hidden="true">
+              <t.icon size={22} className="text-primary" />
+            </div>
             <div className="flex-1">
               <span className="font-bold text-foreground block">{t.label}</span>
               <span className="text-sm text-muted-foreground block">{t.desc}</span>

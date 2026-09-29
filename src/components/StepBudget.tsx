@@ -51,7 +51,9 @@ const StepBudget = ({ onNext }: StepBudgetProps) => {
                 : 'border-border bg-card hover:border-primary/30'
             }`}
           >
-            <span className="text-xl">{b.emoji}</span>
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <b.icon size={16} className="text-primary" />
+            </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-sm text-foreground">{b.label}</span>
