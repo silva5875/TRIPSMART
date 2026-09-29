@@ -71,60 +71,66 @@
   }
 
   .dark {
-    --background: 222 47% 7%;
-    --foreground: 220 20% 93%;
+    /* Contraste mais forte que um simples "inverter a luminosidade": o fundo
+       fica bem mais escuro (6%, quase preto) e os acentos (azul/dourado/
+       vermelho) ficam mais vívidos que no claro — é o que faz o tema escuro
+       parecer desenhado de propósito, não só uma versão apagada do claro. As
+       cores das seções tintadas (--pe-*-light) também ganham mais saturação,
+       senão todas convergiam pra um cinza-azulado parecido entre si. */
+    --background: 224 48% 6%;
+    --foreground: 220 25% 95%;
 
-    --card: 222 40% 12%;
-    --card-foreground: 220 20% 93%;
+    --card: 224 36% 14%;
+    --card-foreground: 220 25% 95%;
 
-    --popover: 222 40% 12%;
-    --popover-foreground: 220 20% 93%;
+    --popover: 224 36% 14%;
+    --popover-foreground: 220 25% 95%;
 
-    --primary: 217 85% 55%;
+    --primary: 217 92% 62%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 42 95% 55%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 42 100% 58%;
+    --secondary-foreground: 222 47% 9%;
 
-    --muted: 222 30% 22%;
-    --muted-foreground: 220 15% 55%;
+    --muted: 222 28% 20%;
+    --muted-foreground: 220 18% 64%;
 
-    --accent: 355 80% 58%;
+    --accent: 355 88% 63%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 220 20% 93%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 222 30% 20%;
-    --input: 222 30% 20%;
-    --ring: 217 85% 55%;
+    --border: 222 28% 23%;
+    --input: 222 28% 23%;
+    --ring: 217 92% 62%;
 
-    --sidebar-background: 222 47% 8%;
+    --sidebar-background: 224 48% 7%;
     --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 42 95% 55%;
+    --sidebar-primary: 42 100% 58%;
     --sidebar-primary-foreground: 222 47% 11%;
-    --sidebar-accent: 222 30% 16%;
+    --sidebar-accent: 222 30% 17%;
     --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 222 30% 18%;
-    --sidebar-ring: 42 95% 55%;
+    --sidebar-border: 222 30% 19%;
+    --sidebar-ring: 42 100% 58%;
 
-    --pe-blue: 217 85% 55%;
-    --pe-red: 355 80% 58%;
-    --pe-gold: 42 95% 55%;
-    --pe-navy: 222 47% 14%;
-    --pe-cream: 222 30% 16%;
-    --pe-blue-light: 217 50% 18%;
-    --pe-red-light: 355 40% 16%;
-    --pe-gold-light: 42 40% 16%;
+    --pe-blue: 217 92% 62%;
+    --pe-red: 355 88% 63%;
+    --pe-gold: 42 100% 58%;
+    --pe-navy: 220 60% 13%;
+    --pe-cream: 222 26% 19%;
+    --pe-blue-light: 217 62% 21%;
+    --pe-red-light: 355 58% 19%;
+    --pe-gold-light: 42 65% 19%;
 
-    --demand-high: 355 80% 58%;
-    --demand-moderate: 42 95% 55%;
-    --demand-low: 160 84% 39%;
+    --demand-high: 355 88% 63%;
+    --demand-moderate: 42 100% 58%;
+    --demand-low: 160 80% 45%;
 
-    --chart-1: 217 85% 55%;
-    --chart-2: 42 95% 55%;
-    --chart-3: 355 80% 58%;
-    --chart-4: 160 84% 39%;
+    --chart-1: 217 92% 62%;
+    --chart-2: 42 100% 58%;
+    --chart-3: 355 88% 63%;
+    --chart-4: 160 80% 45%;
   }
 }
 
