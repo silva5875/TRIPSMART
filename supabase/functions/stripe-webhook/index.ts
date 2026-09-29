@@ -41,6 +41,20 @@ async function planIdForPrice(priceId: string): Promise<string | null> {
   return data?.id ?? null;
 }
 
+/**
+ * Desde a versão Basil da API do Stripe (março/2025), current_period_end
+ * saiu do nível da assinatura e foi para dentro de cada item dela — o campo
+ * antigo (subscription.current_period_end) sempre existiu no tipo do SDK,
+ * mas vem `undefined` em runtime. Sem isto, `new Date(undefined * 1000)`
+ * vira uma data inválida e `.toISOString()` lança, derrubando o webhook
+ * inteiro com 500 (foi exatamente o bug encontrado testando com cartão de
+ * teste — o Stripe reenviou o evento 4 vezes, todas com esse erro).
+ */
+function periodEndOf(subscription: Stripe.Subscription): string | null {
+  const seconds = subscription.items.data[0]?.current_period_end;
+  return seconds ? new Date(seconds * 1000).toISOString() : null;
+}
+
 serve(async (req) => {
   const signature = req.headers.get("Stripe-Signature");
   if (!signature) return new Response("Missing Stripe-Signature header", { status: 400 });
@@ -87,7 +101,7 @@ serve(async (req) => {
             stripe_customer_id: customerId,
             stripe_subscription_id: subscriptionId,
             status: subscription.status,
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            current_period_end: periodEndOf(subscription),
             updated_at: new Date().toISOString(),
           })
           .eq("user_id", userId);
@@ -117,7 +131,7 @@ serve(async (req) => {
           .from("subscriptions")
           .update({
             status: subscription.status,
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            current_period_end: periodEndOf(subscription),
             updated_at: new Date().toISOString(),
           })
           .eq("user_id", userId);
