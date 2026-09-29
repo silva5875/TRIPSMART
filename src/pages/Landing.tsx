@@ -571,7 +571,7 @@ const Landing = () => {
       <section className="py-20 px-6 bg-section-red border-y border-pe-red/10">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-lg bg-pe-red flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-pe-red flex items-center justify-center shrink-0">
               <Star size={20} className="text-white" />
             </div>
             <h2 className="text-3xl md:text-4xl font-black tracking-display text-foreground">
@@ -833,15 +833,9 @@ const Landing = () => {
                         <div className="relative flex flex-col md:flex-row md:items-center gap-6 md:gap-8">
                           <div className="relative shrink-0 w-16 h-16">
                             <motion.div
-                              aria-hidden
-                              className={`absolute -inset-2 rounded-full ${adv.iconBg} opacity-40 blur-lg`}
-                              animate={{ scale: [1, 1.25, 1], opacity: [0.3, 0.55, 0.3] }}
-                              transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
-                            />
-                            <motion.div
                               animate={{ y: [0, -7, 0] }}
                               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                              className={`relative w-16 h-16 rounded-2xl ${adv.iconBg} flex items-center justify-center shadow-lg`}
+                              className={`w-16 h-16 rounded-2xl ${adv.iconBg} flex items-center justify-center`}
                             >
                               <adv.icon size={30} className={adv.iconColor} />
                             </motion.div>

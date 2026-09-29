@@ -70,16 +70,8 @@ const PlanBanner = () => {
       />
 
       <div className="relative max-w-5xl mx-auto px-4 md:px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-        <div className="relative w-9 h-9 shrink-0">
-          <motion.div
-            aria-hidden
-            className="absolute -inset-1.5 rounded-full bg-pe-gold blur-md"
-            animate={{ scale: [1, 1.3, 1], opacity: [0.25, 0.55, 0.25] }}
-            transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-          />
-          <div className="relative w-9 h-9 rounded-full bg-pe-gold/20 flex items-center justify-center">
-            <Sparkles size={16} className="text-pe-gold" />
-          </div>
+        <div className="w-9 h-9 rounded-full bg-pe-gold/20 flex items-center justify-center shrink-0">
+          <Sparkles size={16} className="text-pe-gold" />
         </div>
 
         <div className="flex-1 min-w-0">

@@ -108,8 +108,8 @@ const ActivityDetail = () => {
             </motion.div>
 
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="p-6 rounded-2xl border border-border bg-card" style={{ boxShadow: 'var(--card-shadow)' }}>
-              <h2 className="text-xl font-bold text-card-foreground mb-4 flex items-center gap-2">
-                <Calendar size={20} className="text-primary" /> Melhores meses para visitar
+              <h2 className="text-xl font-bold text-card-foreground mb-4 flex items-start gap-3">
+                <Calendar size={20} className="text-primary shrink-0 mt-0.5" /> Melhores meses para visitar
               </h2>
               <div className="flex flex-wrap gap-2">
                 {spot.peakMonths.map(m => (
