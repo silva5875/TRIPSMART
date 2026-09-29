@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Star, MapPin, Navigation, HelpCircle, ExternalLink } from "lucide-react";
+import { Star, MapPin, Navigation, HelpCircle, ExternalLink, AlertTriangle } from "lucide-react";
 import StarRating from "@/components/StarRating";
 import { useAccommodations, type CatalogContext } from "@/data/catalog";
 import { useAccommodationRatingAverages } from "@/data/reviews";
@@ -179,7 +179,11 @@ const StepAccommodation = ({
                       <span className="text-xs">da atividade principal</span>
                     </span>
                   )}
-                  {!withinBudget && <span className="text-xs font-bold text-destructive">⚠ Acima do orçamento</span>}
+                  {!withinBudget && (
+                    <span className="flex items-center gap-1 text-xs font-bold text-destructive">
+                      <AlertTriangle size={12} /> Acima do orçamento
+                    </span>
+                  )}
                   {userRating && (
                     <span className="flex items-center gap-1 text-sm">
                       <StarRating value={userRating.avg} readOnly size={12} showValue />

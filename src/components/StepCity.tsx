@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Search, Star, Check, Loader2 } from "lucide-react";
+import { Search, Star, Check, Loader2, Flame } from "lucide-react";
 import { pernambucoCities, monthNames, categoryLabels } from "@/data/mockData";
 import StarRating from "@/components/StarRating";
 import { useTouristSpots, type CatalogContext } from "@/data/catalog";
@@ -203,7 +203,7 @@ const StepCity = ({
                     : "bg-card border border-border text-muted-foreground hover:border-primary/40"
                 }`}
               >
-                {cat === "Todos" ? "🔄 Todos" : categoryLabels[cat] || cat}
+                {cat === "Todos" ? "Todos" : categoryLabels[cat] || cat}
               </button>
             ))}
           </div>
@@ -275,8 +275,8 @@ const StepCity = ({
                               </span>
                             )}
                             {inSeason ? (
-                              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-secondary/20 text-secondary">
-                                🔥 Em alta
+                              <span className="flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-secondary/20 text-secondary">
+                                <Flame size={11} /> Em alta
                               </span>
                             ) : spot.peakMonths?.length > 0 ? (
                               <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-muted/20 text-muted-foreground">

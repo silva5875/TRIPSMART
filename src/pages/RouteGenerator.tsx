@@ -9,7 +9,8 @@ import {
   Compass, AlertTriangle, Lock,
   MapPin, Sparkles, Clock, DollarSign,
   ChevronDown, ChevronUp, Footprints, Info, Lightbulb,
-  Calendar, Users, ArrowUp,
+  Calendar, Users, ArrowUp, Loader2, Phone, Instagram, PartyPopper,
+  Hotel, Utensils, Car, Target, ShoppingBag,
 } from "lucide-react";
 import { budgetRanges, monthNames, pernambucoCities } from "@/data/mockData";
 import { generateRichItinerary } from "@/data/catalog";
@@ -142,7 +143,11 @@ const RouteGenerator = () => {
                     selectedMonth === i + 1 ? "bg-pe-gold text-pe-navy border-pe-gold" : "bg-background border-border text-foreground hover:border-pe-gold/40"
                   } ${(i + 1 === 2 || i + 1 === 6) ? "ring-1 ring-pe-red/30" : ""}`}>
                   {m}
-                  {(i + 1 === 2 || i + 1 === 6) && <span className="block text-[10px] text-pe-red mt-0.5">🎉 Festivo</span>}
+                  {(i + 1 === 2 || i + 1 === 6) && (
+                    <span className="flex items-center justify-center gap-0.5 text-[10px] text-pe-red mt-0.5">
+                      <PartyPopper size={9} /> Festivo
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -203,7 +208,7 @@ const RouteGenerator = () => {
                     <AlertTriangle size={20} className="text-white" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-foreground text-sm">🎊 Alerta — {festiveName}</h4>
+                    <h4 className="font-bold text-foreground text-sm">Alerta — {festiveName}</h4>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                       {selectedMonth === 2
                         ? "Fevereiro é mês de Carnaval em Pernambuco! Espere preços 30-60% mais elevados. Reserve com antecedência."
@@ -219,7 +224,7 @@ const RouteGenerator = () => {
           <Button onClick={handleGenerate} disabled={!isFormValid || loading}
             className="w-full h-14 bg-pe-blue hover:bg-pe-blue/90 text-white border-0 rounded-full text-lg font-bold gap-2">
             {loading ? (
-              <><span className="animate-spin">⏳</span> Gerando roteiro com IA...</>
+              <><Loader2 size={22} className="animate-spin" /> Gerando roteiro com IA...</>
             ) : (
               <><Compass size={22} /> Gerar Roteiro Editorial</>
             )}
@@ -245,7 +250,7 @@ const RouteGenerator = () => {
                       <AlertTriangle size={24} className="text-white" />
                     </div>
                     <div>
-                      <h3 className="font-black text-foreground">🎊 Ciclo Festivo — {itinerary.festiveAlert.name}</h3>
+                      <h3 className="font-black text-foreground">Ciclo Festivo — {itinerary.festiveAlert.name}</h3>
                       <p className="text-sm text-muted-foreground mt-1">{itinerary.festiveAlert.description}</p>
                       <span className="inline-block mt-2 px-3 py-1 rounded-full bg-pe-red/20 text-pe-red text-xs font-bold">
                         Aumento de {itinerary.festiveAlert.priceIncrease} nos preços
@@ -383,11 +388,31 @@ const RouteGenerator = () => {
                                           <p className="text-[10px] font-bold text-foreground flex items-center gap-1">
                                             <Info size={10} /> Informações Práticas
                                           </p>
-                                          {h.practicalInfo.address && <p className="text-[10px] text-muted-foreground">📍 {h.practicalInfo.address}</p>}
-                                          {h.practicalInfo.hours && <p className="text-[10px] text-muted-foreground">🕐 {h.practicalInfo.hours}</p>}
-                                          {h.practicalInfo.price && <p className="text-[10px] text-muted-foreground">💰 {h.practicalInfo.price}</p>}
-                                          {h.practicalInfo.phone && <p className="text-[10px] text-muted-foreground">📞 {h.practicalInfo.phone}</p>}
-                                          {h.practicalInfo.instagram && <p className="text-[10px] text-muted-foreground">📸 {h.practicalInfo.instagram}</p>}
+                                          {h.practicalInfo.address && (
+                                            <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                              <MapPin size={10} /> {h.practicalInfo.address}
+                                            </p>
+                                          )}
+                                          {h.practicalInfo.hours && (
+                                            <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                              <Clock size={10} /> {h.practicalInfo.hours}
+                                            </p>
+                                          )}
+                                          {h.practicalInfo.price && (
+                                            <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                              <DollarSign size={10} /> {h.practicalInfo.price}
+                                            </p>
+                                          )}
+                                          {h.practicalInfo.phone && (
+                                            <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                              <Phone size={10} /> {h.practicalInfo.phone}
+                                            </p>
+                                          )}
+                                          {h.practicalInfo.instagram && (
+                                            <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                              <Instagram size={10} /> {h.practicalInfo.instagram}
+                                            </p>
+                                          )}
                                         </div>
                                       )}
                                     </div>
@@ -431,16 +456,19 @@ const RouteGenerator = () => {
                       </h3>
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
                         {Object.entries(itinerary.costBreakdown).map(([key, val]) => {
-                          const labels: Record<string, string> = {
-                            accommodation: "🏨 Hospedagem",
-                            food: "🍽️ Alimentação",
-                            transport: "🚗 Transporte",
-                            activities: "🎯 Atividades",
-                            extras: "🛍️ Extras",
+                          const labels: Record<string, { icon: typeof Hotel; label: string }> = {
+                            accommodation: { icon: Hotel, label: "Hospedagem" },
+                            food: { icon: Utensils, label: "Alimentação" },
+                            transport: { icon: Car, label: "Transporte" },
+                            activities: { icon: Target, label: "Atividades" },
+                            extras: { icon: ShoppingBag, label: "Extras" },
                           };
+                          const info = labels[key];
                           return (
                             <div key={key} className="text-center p-3 rounded-xl bg-background border border-border">
-                              <p className="text-[10px] text-muted-foreground">{labels[key] || key}</p>
+                              <p className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
+                                {info && <info.icon size={10} />} {info?.label || key}
+                              </p>
                               <p className="text-lg font-black text-foreground mt-1">R$ {(val as number).toLocaleString("pt-BR")}</p>
                             </div>
                           );

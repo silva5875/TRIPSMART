@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   User, Mail, Edit3, Save, LogOut, History,
-  Users, MapPin, Shield, Eye, EyeOff, Check, AlertTriangle, Camera, Loader2,
+  Users, MapPin, Shield, Eye, EyeOff, Check, AlertTriangle, Camera, Loader2, Lock,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRequireAuth } from '@/hooks/use-require-auth';
@@ -260,7 +260,7 @@ const Profile = () => {
           </h2>
           {!showPasswordSection ? (
             <Button variant="outline" onClick={() => setShowPasswordSection(true)} className="rounded-full font-bold gap-2 border-pe-red/30 text-pe-red hover:bg-pe-red/10">
-              🔒 Alterar senha
+              <Lock size={15} /> Alterar senha
             </Button>
           ) : (
             <div className="space-y-4">

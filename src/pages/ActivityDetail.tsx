@@ -204,7 +204,7 @@ const ActivityDetail = () => {
       </div>
 
       <footer className="text-center py-8 text-sm text-muted-foreground border-t border-border">
-        <span className="font-black"><span className="text-primary">TRIP</span><span className="text-accent">SMART</span></span> · Explore Pernambuco 🏖️
+        <span className="font-black"><span className="text-primary">TRIP</span><span className="text-accent">SMART</span></span> · Explore Pernambuco
       </footer>
     </div>
   );

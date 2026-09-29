@@ -173,7 +173,7 @@ const AdminOverviewTab = ({ onGoToUsers }: AdminOverviewTabProps) => {
 
   const reviewsRows: DrillDownRow[] = reviews.map((r) => ({
     id: r.id,
-    title: `${'⭐'.repeat(r.score)} ${r.subject}`,
+    title: `${r.score}/5 · ${r.subject}`,
     subtitle: `${r.kind === 'activity' ? 'Atividade' : 'Hospedagem'} · avaliado por ${r.displayName ?? 'Sem nome'}${r.comment ? ` — "${r.comment}"` : ''}`,
     meta: formatDate(r.createdAt),
   }));

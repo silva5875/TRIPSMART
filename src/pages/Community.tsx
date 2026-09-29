@@ -45,7 +45,7 @@ const Community = () => {
   const handleRate = (itineraryId: string, score: number) => {
     rateItinerary.mutate(
       { itineraryId, score },
-      { onSuccess: () => toast({ title: `Avaliação: ${'⭐'.repeat(score)}` }), onError }
+      { onSuccess: () => toast({ title: `Avaliação: ${score} estrela${score > 1 ? 's' : ''}` }), onError }
     );
   };
 

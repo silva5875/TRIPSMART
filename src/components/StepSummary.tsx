@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Check, RotateCcw, Map, ExternalLink, CalendarDays, Share2, MapPin, Clock, DollarSign, Lightbulb, AlertTriangle, ChevronDown, ChevronUp, Navigation, Info, Instagram, Phone, MessageSquare, FileDown, Lock } from "lucide-react";
+import { Check, RotateCcw, Map, ExternalLink, CalendarDays, Share2, MapPin, Clock, DollarSign, Lightbulb, AlertTriangle, ChevronDown, ChevronUp, Navigation, Info, Instagram, Phone, MessageSquare, FileDown, Lock, Star } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import TravelMap from "@/components/TravelMap";
@@ -311,7 +311,7 @@ const StepSummary = ({ data, onRestart }: StepSummaryProps) => {
       </div>
 
       <div className="text-center space-y-2">
-        <h2 className="text-2xl md:text-4xl font-extrabold tracking-display text-foreground">Roteiro pronto! 🎉</h2>
+        <h2 className="text-2xl md:text-4xl font-extrabold tracking-display text-foreground">Roteiro pronto!</h2>
         <p className="text-muted-foreground text-base md:text-lg">
           {data.days} dia{data.days > 1 ? "s" : ""} em {data.cityName}, PE
         </p>
@@ -328,7 +328,7 @@ const StepSummary = ({ data, onRestart }: StepSummaryProps) => {
         <SummaryRow label="Adultos" value={`${data.adults}`} />
         {data.children > 0 && <SummaryRow label="Crianças" value={`${data.children}`} />}
         <SummaryRow label="Total passageiros" value={`${data.people} pessoa${data.people > 1 ? "s" : ""}`} />
-        {data.isCouple && <SummaryRow label="Tipo" value="💕 Casal" />}
+        {data.isCouple && <SummaryRow label="Tipo" value="Casal" />}
         {data.people > 1 && !data.isCouple && (
           <SummaryRow label="Tipo" value={data.groupType === "couple" ? "Casal" : "Amigos"} />
         )}
@@ -357,8 +357,9 @@ const StepSummary = ({ data, onRestart }: StepSummaryProps) => {
             <div className="mt-1">
               <span className="font-bold text-foreground">{data.accommodation.name}</span>
               <span className="text-sm text-muted-foreground block">{data.accommodation.address}</span>
-              <span className="text-sm text-primary font-semibold">
-                ⭐ {data.accommodation.rating} · R$ {data.accommodation.pricePerNight}/noite · Total: R${" "}
+              <span className="text-sm text-primary font-semibold inline-flex items-center gap-1">
+                <Star size={13} className="fill-primary" /> {data.accommodation.rating} · R${" "}
+                {data.accommodation.pricePerNight}/noite · Total: R${" "}
                 {(data.accommodation.pricePerNight * data.days).toLocaleString("pt-BR")}
               </span>
               {isSafeExternalUrl(data.accommodation.bookingUrl) && (
@@ -456,7 +457,7 @@ const StepSummary = ({ data, onRestart }: StepSummaryProps) => {
               <div className="p-4 md:p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex gap-3">
                 <AlertTriangle size={24} className="text-amber-500 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-bold text-foreground">🎉 {richItinerary.festiveAlert.name}</h4>
+                  <h4 className="font-bold text-foreground">{richItinerary.festiveAlert.name}</h4>
                   <p className="text-sm text-muted-foreground mt-1">{richItinerary.festiveAlert.description}</p>
                   <span className="inline-block mt-2 text-xs font-bold px-3 py-1 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">
                     Preços ~{richItinerary.festiveAlert.priceIncrease} acima do normal

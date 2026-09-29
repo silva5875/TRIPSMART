@@ -100,7 +100,12 @@ const StepBudget = ({ onNext }: StepBudgetProps) => {
         {/* Summary line */}
         <div className="text-center text-xs text-muted-foreground">
           <span className="font-semibold text-foreground">{people}</span> passageiro{people > 1 ? 's' : ''} ({adults} adulto{adults > 1 ? 's' : ''}{children > 0 ? `, ${children} criança${children > 1 ? 's' : ''}` : ''}) · <span className="font-semibold text-foreground">{rooms}</span> quarto{rooms > 1 ? 's' : ''} · <span className="font-semibold text-foreground">{days}</span> dia{days > 1 ? 's' : ''}
-          {isCouple && <span className="text-primary font-semibold"> · 💕 Casal</span>}
+          {isCouple && (
+            <span className="text-primary font-semibold inline-flex items-center gap-1">
+              {' · '}
+              <Heart size={11} className="fill-primary" /> Casal
+            </span>
+          )}
         </div>
       </div>
 

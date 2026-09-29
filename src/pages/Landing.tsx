@@ -30,6 +30,7 @@ import {
   Backpack,
   Rocket,
   Menu,
+  ClipboardList,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -427,7 +428,9 @@ const Landing = () => {
       {user && hasSavedPlan && (
         <div className="bg-pe-gold/90 px-4 md:px-6 py-3">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <p className="text-pe-navy font-bold text-sm">📋 Você tem um planejamento em andamento</p>
+            <p className="text-pe-navy font-bold text-sm flex items-center gap-1.5">
+              <ClipboardList size={15} /> Você tem um planejamento em andamento
+            </p>
             <Button
               onClick={() => navigate("/planejar")}
               size="sm"
@@ -450,8 +453,8 @@ const Landing = () => {
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
             className="flex-1 text-left"
           >
-            <span className="inline-block px-4 py-1.5 rounded-full bg-pe-gold text-pe-navy text-sm font-bold mb-6">
-              ✨ Explore Pernambuco com IA
+            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-pe-gold text-pe-navy text-sm font-bold mb-6">
+              <Sparkles size={15} /> Explore Pernambuco com IA
             </span>
             <h1 className="text-5xl md:text-7xl font-black tracking-display text-white leading-[1.05]">
               Planeje sua
@@ -1034,7 +1037,7 @@ const Landing = () => {
         >
           TRIP<span className="text-pe-gold">SMART</span>
         </button>
-        <p className="text-white/50 text-sm">Explore Pernambuco com inteligência 🏖️</p>
+        <p className="text-white/50 text-sm">Explore Pernambuco com inteligência</p>
         <p className="text-white/30 text-xs">© {new Date().getFullYear()} TripSmart. Todos os direitos reservados.</p>
       </footer>
 

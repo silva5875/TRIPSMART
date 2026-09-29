@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
-import { Navigation, ArrowLeft } from 'lucide-react';
+import { Navigation, ArrowLeft, Palmtree, Turtle, Drama, Waves } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Seo from '@/components/Seo';
 import { PASSWORD_REGEX, PASSWORD_REQUIREMENTS_TEXT, isAtLeast18 } from '@/lib/validation';
@@ -121,8 +121,10 @@ const Auth = () => {
           </h2>
           <p className="text-white/60 max-w-sm">Roteiros personalizados com IA para cidades pernambucanas.</p>
           <div className="flex gap-3">
-            {["🏖️", "🐢", "🎭", "🌊"].map((e, i) => (
-              <div key={i} className="w-14 h-14 rounded-xl bg-white/10 flex items-center justify-center text-2xl">{e}</div>
+            {[Palmtree, Turtle, Drama, Waves].map((Icon, i) => (
+              <div key={i} className="w-14 h-14 rounded-xl bg-white/10 flex items-center justify-center">
+                <Icon size={24} className="text-pe-gold" />
+              </div>
             ))}
           </div>
         </div>

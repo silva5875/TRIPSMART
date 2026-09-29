@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   Plane, Calendar, Users, MapPin, Trash2, DollarSign, Bus, Hotel,
-  Utensils, Star, ChevronRight, MessageSquare, FileDown,
+  Utensils, Star, ChevronRight, MessageSquare, FileDown, Check, Target,
 } from 'lucide-react';
 import AppHeader from '@/components/AppHeader';
 import Seo from '@/components/Seo';
@@ -159,7 +159,11 @@ const TravelHistory = () => {
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="flex items-center gap-1 text-xs text-muted-foreground"><Users size={12} /> {r.people}p · {groupTypeLabel(r.group_type)}</span>
-                        {r.month && <span className="text-xs px-2 py-0.5 rounded-full bg-pe-gold/10 text-pe-gold font-semibold">📅 {monthName(r.month)}</span>}
+                        {r.month && (
+                          <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-pe-gold/10 text-pe-gold font-semibold">
+                            <Calendar size={11} /> {monthName(r.month)}
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm text-foreground font-bold tabular-nums">{budgetLabel(r.budget)}</p>
                       <p className="text-[10px] font-bold text-primary tracking-wider">
@@ -255,8 +259,14 @@ const TravelHistory = () => {
                             size={14}
                             showValue={false}
                           />
-                          <span className="text-[10px] text-muted-foreground">
-                            {activityRatings[spot.name] ? 'Avaliado ✓' : 'Avaliar'}
+                          <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                            {activityRatings[spot.name] ? (
+                              <>
+                                <Check size={10} /> Avaliado
+                              </>
+                            ) : (
+                              'Avaliar'
+                            )}
                           </span>
                         </div>
                       </div>
@@ -273,7 +283,9 @@ const TravelHistory = () => {
                   <div className="space-y-2">
                     {restaurants.map((r, idx) => (
                       <div key={idx} className="p-3 rounded-xl border border-border bg-card flex items-center gap-3">
-                        <span className="text-2xl">🍽️</span>
+                        <div className="w-8 h-8 rounded-full bg-pe-red/10 flex items-center justify-center shrink-0">
+                          <Utensils size={14} className="text-pe-red" />
+                        </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold text-card-foreground truncate">{r.name}</p>
                           <p className="text-xs text-muted-foreground truncate">{r.cuisine || r.address}</p>
@@ -289,8 +301,16 @@ const TravelHistory = () => {
                 <div className="space-y-3">
                   <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Tags</h3>
                   <div className="flex flex-wrap gap-1.5">
-                    {selected.entertainment.map((tag) => <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-pe-blue/10 text-primary font-semibold">🎯 {tag}</span>)}
-                    {selected.food.map((tag) => <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-pe-red/10 text-pe-red font-semibold">🍴 {tag}</span>)}
+                    {selected.entertainment.map((tag) => (
+                      <span key={tag} className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-pe-blue/10 text-primary font-semibold">
+                        <Target size={11} /> {tag}
+                      </span>
+                    ))}
+                    {selected.food.map((tag) => (
+                      <span key={tag} className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-pe-red/10 text-pe-red font-semibold">
+                        <Utensils size={11} /> {tag}
+                      </span>
+                    ))}
                   </div>
                 </div>
               )}
