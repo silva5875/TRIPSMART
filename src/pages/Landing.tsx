@@ -651,11 +651,13 @@ const Landing = () => {
                     <span className="text-3xl font-black text-foreground">{formatPriceCents(plan.priceCents)}</span>
                     {!isFree && <span className="text-sm text-muted-foreground">/mês</span>}
                   </div>
-                  <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <Check size={15} className="text-primary shrink-0" />
-                    <strong className="text-card-foreground">{plan.itineraryLimitPerMonth}</strong> roteiro
-                    {plan.itineraryLimitPerMonth > 1 ? "s" : ""} personalizado
-                    {plan.itineraryLimitPerMonth > 1 ? "s" : ""} por mês
+                  <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
+                    <Check size={15} className="text-primary shrink-0 mt-0.5" />
+                    <span>
+                      <strong className="text-card-foreground">{plan.itineraryLimitPerMonth}</strong> roteiro
+                      {plan.itineraryLimitPerMonth > 1 ? "s" : ""} personalizado
+                      {plan.itineraryLimitPerMonth > 1 ? "s" : ""} por mês
+                    </span>
                   </p>
                 </motion.div>
               );
