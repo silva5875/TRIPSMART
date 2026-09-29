@@ -121,6 +121,7 @@ const Landing = () => {
   const { data: plans = [] } = usePlans();
   const [planCarouselApi, setPlanCarouselApi] = useState<CarouselApi>();
   const [activeAdvantageIndex, setActiveAdvantageIndex] = useState(0);
+  const [carouselPaused, setCarouselPaused] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setShowScrollTop(window.scrollY > 600);
@@ -219,12 +220,13 @@ const Landing = () => {
   // setTimeout reiniciado a cada troca de slide (não setInterval fixo) — assim
   // ele também reinicia quando o usuário navega manualmente (seta/bolinha), e
   // fica sempre em sincronia com a barra de progresso abaixo do carrossel,
-  // que reinicia pela mesma mudança de activeAdvantageIndex.
+  // que reinicia pela mesma mudança de activeAdvantageIndex. Pausa por
+  // completo com o mouse em cima — quem está lendo não deve perder o slide.
   useEffect(() => {
-    if (!planCarouselApi || planAdvantages.length < 2) return;
+    if (!planCarouselApi || planAdvantages.length < 2 || carouselPaused) return;
     const id = setTimeout(() => planCarouselApi.scrollNext(), PLAN_CAROUSEL_AUTOPLAY_MS);
     return () => clearTimeout(id);
-  }, [planCarouselApi, planAdvantages.length, activeAdvantageIndex]);
+  }, [planCarouselApi, planAdvantages.length, activeAdvantageIndex, carouselPaused]);
 
   const allSpots = useMemo(() => {
     const spots: { spot: (typeof spotsByCity)["recife"][0]; cityId: string; cityName: string }[] = [];
@@ -793,7 +795,13 @@ const Landing = () => {
               </p>
             </div>
 
-            <Carousel setApi={setPlanCarouselApi} opts={{ loop: true, duration: 16 }} className="max-w-3xl mx-auto">
+            <Carousel
+              setApi={setPlanCarouselApi}
+              opts={{ loop: true, duration: 16 }}
+              className="max-w-3xl mx-auto"
+              onMouseEnter={() => setCarouselPaused(true)}
+              onMouseLeave={() => setCarouselPaused(false)}
+            >
               <CarouselContent>
                 {planAdvantages.map((adv, i) => {
                   const isActive = i === activeAdvantageIndex;
@@ -844,13 +852,24 @@ const Landing = () => {
                             <p className="text-muted-foreground mt-2.5 leading-relaxed">{adv.description}</p>
                           </motion.div>
                           <div className="shrink-0 flex flex-row md:flex-col items-center md:items-end justify-between md:justify-start gap-4 md:gap-0 pt-4 md:pt-0 border-t md:border-t-0 border-border/50">
-                            <div className="text-left md:text-right">
+                            <motion.div
+                              key={`${adv.id}-price-${isActive}`}
+                              initial={isActive ? { scale: 0.7, opacity: 0 } : false}
+                              animate={{ scale: 1, opacity: 1 }}
+                              transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                              className="text-left md:text-right"
+                            >
                               <div className="text-3xl font-black text-foreground">{adv.priceLabel}</div>
                               {adv.subPrice && <div className="text-xs text-muted-foreground mt-0.5">{adv.subPrice}</div>}
-                            </div>
-                            <Button onClick={adv.onClick} className={`md:mt-4 rounded-full font-bold border-0 ${adv.ctaClass}`}>
-                              {adv.cta}
-                            </Button>
+                            </motion.div>
+                            <motion.div
+                              animate={isActive ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+                              transition={{ duration: 1.6, repeat: isActive ? Infinity : 0, ease: "easeInOut" }}
+                            >
+                              <Button onClick={adv.onClick} className={`md:mt-4 rounded-full font-bold border-0 ${adv.ctaClass}`}>
+                                {adv.cta}
+                              </Button>
+                            </motion.div>
                           </div>
                         </div>
                       </motion.div>
@@ -872,7 +891,7 @@ const Landing = () => {
                     key={activeAdvantageIndex}
                     className="h-full rounded-full bg-pe-gold"
                     initial={{ width: "0%" }}
-                    animate={{ width: "100%" }}
+                    animate={{ width: carouselPaused ? undefined : "100%" }}
                     transition={{ duration: PLAN_CAROUSEL_AUTOPLAY_MS / 1000, ease: "linear" }}
                   />
                 </div>

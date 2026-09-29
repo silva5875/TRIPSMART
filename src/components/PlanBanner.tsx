@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { X, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePlans } from '@/data/plans';
@@ -29,14 +30,15 @@ const PlanBanner = () => {
     () => typeof window !== 'undefined' && sessionStorage.getItem(DISMISSED_KEY) === 'true'
   );
   const [activeIndex, setActiveIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
-    if (paidPlans.length < 2) return;
+    if (paidPlans.length < 2 || paused) return;
     const id = setInterval(() => {
       setActiveIndex((i) => (i + 1) % paidPlans.length);
     }, ROTATE_MS);
     return () => clearInterval(id);
-  }, [paidPlans.length]);
+  }, [paidPlans.length, paused]);
 
   if (dismissed || paidPlans.length === 0 || HIDDEN_ON.includes(location.pathname)) return null;
 
@@ -48,17 +50,52 @@ const PlanBanner = () => {
   };
 
   return (
-    <footer role="region" aria-label="Planos TripSmart" className="bg-pe-navy text-white border-t border-white/10">
-      <div className="max-w-5xl mx-auto px-4 md:px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-        <div className="w-9 h-9 rounded-full bg-pe-gold/20 flex items-center justify-center shrink-0">
-          <Sparkles size={16} className="text-pe-gold" />
+    <motion.footer
+      role="region"
+      aria-label="Planos TripSmart"
+      initial={{ y: 48, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ type: 'spring', stiffness: 260, damping: 26 }}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      className="relative overflow-hidden bg-pe-navy text-white border-t border-white/10"
+    >
+      {/* Brilho diagonal contínuo passando de fundo — o banner parece "vivo"
+          mesmo entre uma troca de plano e outra. */}
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 w-1/4 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12"
+        animate={{ x: ['-50%', '450%'] }}
+        transition={{ duration: 3.5, repeat: Infinity, repeatDelay: 3, ease: 'easeInOut' }}
+      />
+
+      <div className="relative max-w-5xl mx-auto px-4 md:px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+        <div className="relative w-9 h-9 shrink-0">
+          <motion.div
+            aria-hidden
+            className="absolute -inset-1.5 rounded-full bg-pe-gold blur-md"
+            animate={{ scale: [1, 1.3, 1], opacity: [0.25, 0.55, 0.25] }}
+            transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <div className="relative w-9 h-9 rounded-full bg-pe-gold/20 flex items-center justify-center">
+            <Sparkles size={16} className="text-pe-gold" />
+          </div>
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-white/90">
-            <strong className="text-pe-gold">{active.name}</strong> — {formatPriceCents(active.priceCents)}/mês ·{' '}
-            {active.itineraryLimitPerMonth} roteiros personalizados por mês
-          </p>
+          <AnimatePresence mode="wait">
+            <motion.p
+              key={active.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.3 }}
+              className="text-sm text-white/90"
+            >
+              <strong className="text-pe-gold">{active.name}</strong> — {formatPriceCents(active.priceCents)}/mês ·{' '}
+              {active.itineraryLimitPerMonth} roteiros personalizados por mês
+            </motion.p>
+          </AnimatePresence>
           {paidPlans.length > 1 && (
             <div className="flex gap-1.5 mt-2" role="tablist" aria-label="Planos em destaque">
               {paidPlans.map((p, i) => (
@@ -78,13 +115,21 @@ const PlanBanner = () => {
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-          <Button
-            size="sm"
-            onClick={() => navigate('/planos')}
-            className="flex-1 sm:flex-none bg-pe-gold hover:bg-pe-gold/90 text-pe-navy border-0 font-bold rounded-full"
+          <motion.div
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.96 }}
+            animate={{ scale: [1, 1.04, 1] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+            className="flex-1 sm:flex-none"
           >
-            Ver planos
-          </Button>
+            <Button
+              size="sm"
+              onClick={() => navigate('/planos')}
+              className="w-full bg-pe-gold hover:bg-pe-gold/90 text-pe-navy border-0 font-bold rounded-full"
+            >
+              Ver planos
+            </Button>
+          </motion.div>
           <button
             onClick={dismiss}
             aria-label="Fechar aviso de planos"
@@ -94,7 +139,7 @@ const PlanBanner = () => {
           </button>
         </div>
       </div>
-    </footer>
+    </motion.footer>
   );
 };
 
