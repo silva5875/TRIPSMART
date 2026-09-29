@@ -302,7 +302,11 @@ const RouteGenerator = () => {
                                 <div className="flex items-center gap-2 mb-1">
                                   <span className="text-xs font-bold text-pe-blue">{act.time}</span>
                                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${periodColor(act.period)}`}>{act.period}</span>
-                                  {act.duration && <span className="text-[10px] text-muted-foreground">⏱ {act.duration}</span>}
+                                  {act.duration && (
+                                    <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                                      <Clock size={10} /> {act.duration}
+                                    </span>
+                                  )}
                                 </div>
                                 <h5 className="font-bold text-foreground text-sm">{act.title}</h5>
                                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{act.description}</p>
