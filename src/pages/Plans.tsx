@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Check, Sparkles, X } from 'lucide-react';
+import { Check, Sparkles, X, Shield, Users } from 'lucide-react';
 import AppHeader from '@/components/AppHeader';
 import Seo from '@/components/Seo';
 import { Button } from '@/components/ui/button';
@@ -117,6 +117,27 @@ const PlanCard = ({
   );
 };
 
+const whyReasons = [
+  {
+    icon: Sparkles,
+    title: 'IA que entende sua viagem',
+    desc: 'Roteiros hora a hora, considerando seu orçamento, seus dias e o que você realmente quer fazer — não um pacote pronto igual pra todo mundo.',
+    color: 'bg-pe-blue',
+  },
+  {
+    icon: Shield,
+    title: 'Segurança em primeiro lugar',
+    desc: 'Indicadores de segurança por bairro e hospedagem, pra você planejar sem surpresa.',
+    color: 'bg-pe-red',
+  },
+  {
+    icon: Users,
+    title: 'Comunidade ativa',
+    desc: 'Compartilhe roteiros, veja avaliações e aprenda com quem já viajou pra onde você quer ir.',
+    color: 'bg-pe-gold',
+  },
+];
+
 type ComparisonCell = boolean | string;
 
 type ComparisonRow = {
@@ -218,6 +239,32 @@ const Plans = () => {
               Você está no plano {quota.planName} — {quota.usedThisMonth} de {quota.limitPerMonth} roteiros usados este mês
             </p>
           )}
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="space-y-6"
+        >
+          <h2 className="text-center text-xl md:text-2xl font-black tracking-display text-foreground">
+            Por que assinar o TripSmart
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {whyReasons.map((reason) => (
+              <div
+                key={reason.title}
+                className="p-5 rounded-2xl border border-border bg-card"
+                style={{ boxShadow: 'var(--card-shadow)' }}
+              >
+                <div className={`w-11 h-11 rounded-xl ${reason.color} flex items-center justify-center mb-4`}>
+                  <reason.icon size={20} className="text-white" />
+                </div>
+                <h3 className="font-bold text-card-foreground">{reason.title}</h3>
+                <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{reason.desc}</p>
+              </div>
+            ))}
+          </div>
         </motion.div>
 
         {isLoading ? (
