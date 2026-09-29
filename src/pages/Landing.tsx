@@ -29,8 +29,17 @@ import {
   Check,
   Backpack,
   Rocket,
+  Menu,
   type LucideIcon,
 } from "lucide-react";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { pernambucoCities, spotsByCity, categoryLabels, pernambucoImages } from "@/data/mockData";
 import heroPernambuco from "@/assets/hero-pernambuco.jpg";
 import Seo from "@/components/Seo";
@@ -269,49 +278,120 @@ const Landing = () => {
             <ThemeToggle />
             {user ? (
               <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate("/historico")}
-                  className="gap-1.5 text-xs font-bold text-white/80 hover:text-white hover:bg-white/10"
-                >
-                  <History size={14} /> Histórico
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate("/comunidade")}
-                  className="gap-1.5 text-xs font-bold text-white/80 hover:text-white hover:bg-white/10"
-                >
-                  <Users size={14} /> Comunidade
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate("/perfil")}
-                  className="gap-1.5 text-xs font-bold text-white/80 hover:text-white hover:bg-white/10"
-                >
-                  <User size={14} /> Perfil
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={signOut}
-                  className="gap-1.5 text-xs font-bold text-white/80 hover:text-white hover:bg-white/10"
-                >
-                  <LogOut size={14} /> Sair
-                </Button>
+                {/* Telas médias/grandes: todos os links na barra. Abaixo de
+                    md, viram menu — 6 itens lado a lado não cabem num
+                    celular sem estourar a largura da página. */}
+                <div className="hidden md:flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate("/historico")}
+                    className="gap-1.5 text-xs font-bold text-white/80 hover:text-white hover:bg-white/10"
+                  >
+                    <History size={14} /> Histórico
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate("/comunidade")}
+                    className="gap-1.5 text-xs font-bold text-white/80 hover:text-white hover:bg-white/10"
+                  >
+                    <Users size={14} /> Comunidade
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate("/perfil")}
+                    className="gap-1.5 text-xs font-bold text-white/80 hover:text-white hover:bg-white/10"
+                  >
+                    <User size={14} /> Perfil
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={signOut}
+                    className="gap-1.5 text-xs font-bold text-white/80 hover:text-white hover:bg-white/10"
+                  >
+                    <LogOut size={14} /> Sair
+                  </Button>
+                </div>
                 <Button
                   onClick={() => goToPlanner()}
-                  className="bg-pe-gold hover:bg-pe-gold/90 text-pe-navy border-0 rounded-full px-5 h-9 text-sm font-bold gap-1.5"
+                  className="hidden sm:inline-flex bg-pe-gold hover:bg-pe-gold/90 text-pe-navy border-0 rounded-full px-5 h-9 text-sm font-bold gap-1.5"
                 >
                   <Compass size={14} /> Planejar
                 </Button>
+
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="md:hidden text-white hover:bg-white/10"
+                      aria-label="Abrir menu"
+                    >
+                      <Menu size={20} />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="right" className="bg-pe-navy border-pe-blue/20 text-white w-72">
+                    <SheetHeader>
+                      <SheetTitle className="text-white text-left">
+                        TRIP<span className="text-pe-gold">SMART</span>
+                      </SheetTitle>
+                    </SheetHeader>
+                    <div className="flex flex-col gap-1 mt-6">
+                      <SheetClose asChild>
+                        <Button
+                          onClick={() => goToPlanner()}
+                          className="justify-start gap-2.5 bg-pe-gold hover:bg-pe-gold/90 text-pe-navy border-0 rounded-full font-bold mb-3"
+                        >
+                          <Compass size={16} /> Planejar
+                        </Button>
+                      </SheetClose>
+                      <SheetClose asChild>
+                        <Button
+                          variant="ghost"
+                          onClick={() => navigate("/historico")}
+                          className="justify-start gap-2.5 text-white/90 hover:text-white hover:bg-white/10"
+                        >
+                          <History size={16} /> Histórico
+                        </Button>
+                      </SheetClose>
+                      <SheetClose asChild>
+                        <Button
+                          variant="ghost"
+                          onClick={() => navigate("/comunidade")}
+                          className="justify-start gap-2.5 text-white/90 hover:text-white hover:bg-white/10"
+                        >
+                          <Users size={16} /> Comunidade
+                        </Button>
+                      </SheetClose>
+                      <SheetClose asChild>
+                        <Button
+                          variant="ghost"
+                          onClick={() => navigate("/perfil")}
+                          className="justify-start gap-2.5 text-white/90 hover:text-white hover:bg-white/10"
+                        >
+                          <User size={16} /> Perfil
+                        </Button>
+                      </SheetClose>
+                      <SheetClose asChild>
+                        <Button
+                          variant="ghost"
+                          onClick={signOut}
+                          className="justify-start gap-2.5 text-white/90 hover:text-white hover:bg-white/10"
+                        >
+                          <LogOut size={16} /> Sair
+                        </Button>
+                      </SheetClose>
+                    </div>
+                  </SheetContent>
+                </Sheet>
               </>
             ) : (
               <Button
                 onClick={() => navigate("/auth")}
-                className="bg-pe-gold hover:bg-pe-gold/90 text-pe-navy border-0 rounded-full px-6 font-bold gap-2"
+                className="bg-pe-gold hover:bg-pe-gold/90 text-pe-navy border-0 rounded-full px-4 sm:px-6 font-bold gap-2"
               >
                 Entrar <ArrowRight size={16} />
               </Button>
@@ -757,8 +837,11 @@ const Landing = () => {
                   );
                 })}
               </CarouselContent>
-              <CarouselPrevious className="hidden sm:flex" />
-              <CarouselNext className="hidden sm:flex" />
+              {/* As setas ficam fora da caixa do carrossel (offset negativo) — só
+                  cabem sem estourar a largura da página a partir de lg, onde a
+                  seção tem margem de sobra ao redor do carrossel (max-w-3xl). */}
+              <CarouselPrevious className="hidden lg:flex" />
+              <CarouselNext className="hidden lg:flex" />
             </Carousel>
 
             {planAdvantages.length > 1 && (
