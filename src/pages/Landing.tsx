@@ -26,12 +26,15 @@ import {
   Shield,
   Clock,
   TrendingUp,
+  Check,
 } from "lucide-react";
 import { pernambucoCities, spotsByCity, categoryLabels, pernambucoImages } from "@/data/mockData";
 import heroPernambuco from "@/assets/hero-pernambuco.jpg";
 import Seo from "@/components/Seo";
 import { siteUrl } from "@/lib/site";
 import { usePlannerProgress } from "@/data/plannerProgress";
+import { usePlans } from "@/data/plans";
+import { formatPriceCents } from "@/lib/format";
 
 const featuredDestinations = [
   { name: "Recife", cityId: "recife", emoji: "🏙️", imageUrl: pernambucoImages.recife, tag: "Capital", color: "bg-pe-blue", desc: "Marco Zero, Brennand e praias urbanas" },
@@ -74,6 +77,7 @@ const Landing = () => {
   // sessão ou dispositivo.
   const { data: savedProgress } = usePlannerProgress();
   const hasSavedPlan = !!savedProgress;
+  const { data: plans = [] } = usePlans();
 
   useEffect(() => {
     const onScroll = () => setShowScrollTop(window.scrollY > 600);
@@ -483,6 +487,65 @@ const Landing = () => {
                 <p className="text-sm text-muted-foreground mt-3 leading-relaxed">{item.desc}</p>
               </motion.div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Planos — visíveis direto na home, não só na página /planos */}
+      <section id="planos" className="py-20 px-6 bg-background">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl md:text-4xl font-black tracking-display text-foreground">
+              Um plano pra cada jeito de viajar
+            </h2>
+            <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
+              Quanto mais roteiros personalizados por mês, mais viagens você planeja com a gente.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            {plans.map((plan, i) => {
+              const isExplorador = plan.id === "explorador";
+              const isFree = plan.priceCents === 0;
+              return (
+                <motion.div
+                  key={plan.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.1 }}
+                  className={`p-6 rounded-2xl border bg-card space-y-4 ${
+                    isExplorador ? "border-pe-gold border-2" : "border-border"
+                  }`}
+                  style={{ boxShadow: "var(--card-shadow)" }}
+                >
+                  {isExplorador && (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-pe-gold text-pe-navy text-xs font-bold">
+                      <Sparkles size={12} /> Quem planeja mais
+                    </div>
+                  )}
+                  <h3 className="text-lg font-bold text-card-foreground">{plan.name}</h3>
+                  <div>
+                    <span className="text-3xl font-black text-foreground">{formatPriceCents(plan.priceCents)}</span>
+                    {!isFree && <span className="text-sm text-muted-foreground">/mês</span>}
+                  </div>
+                  <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Check size={15} className="text-primary shrink-0" />
+                    <strong className="text-card-foreground">{plan.itineraryLimitPerMonth}</strong> roteiro
+                    {plan.itineraryLimitPerMonth > 1 ? "s" : ""} personalizado
+                    {plan.itineraryLimitPerMonth > 1 ? "s" : ""} por mês
+                  </p>
+                </motion.div>
+              );
+            })}
+          </div>
+
+          <div className="text-center mt-10">
+            <Button
+              onClick={() => navigate("/planos")}
+              className="bg-pe-gold hover:bg-pe-gold/90 text-pe-navy border-0 rounded-full px-8 h-12 text-base font-bold gap-2"
+            >
+              Ver todos os planos <ArrowRight size={18} />
+            </Button>
           </div>
         </div>
       </section>
