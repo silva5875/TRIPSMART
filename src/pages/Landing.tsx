@@ -27,6 +27,9 @@ import {
   Clock,
   TrendingUp,
   Check,
+  Backpack,
+  Rocket,
+  type LucideIcon,
 } from "lucide-react";
 import { pernambucoCities, spotsByCity, categoryLabels, pernambucoImages } from "@/data/mockData";
 import heroPernambuco from "@/assets/hero-pernambuco.jpg";
@@ -35,6 +38,14 @@ import { siteUrl } from "@/lib/site";
 import { usePlannerProgress } from "@/data/plannerProgress";
 import { usePlans } from "@/data/plans";
 import { formatPriceCents } from "@/lib/format";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+  type CarouselApi,
+} from "@/components/ui/carousel";
 
 const featuredDestinations = [
   { name: "Recife", cityId: "recife", emoji: "🏙️", imageUrl: pernambucoImages.recife, tag: "Capital", color: "bg-pe-blue", desc: "Marco Zero, Brennand e praias urbanas" },
@@ -44,6 +55,23 @@ const featuredDestinations = [
   { name: "Caruaru", cityId: "caruaru", emoji: "🎶", imageUrl: pernambucoImages.caruaru, tag: "Forró", color: "bg-pe-red", desc: "Feira, São João e Alto do Moura" },
   { name: "Gravatá", cityId: "gravata", emoji: "🌄", imageUrl: pernambucoImages.gravata, tag: "Aventura", color: "bg-pe-blue", desc: "Trilhas e rapel na serra" },
 ];
+
+type PlanAdvantage = {
+  id: string;
+  eyebrow: string;
+  eyebrowClass: string;
+  headline: string;
+  description: string;
+  priceLabel: string;
+  subPrice?: string;
+  cta: string;
+  ctaClass: string;
+  icon: LucideIcon;
+  iconBg: string;
+  iconColor: string;
+  cardClass: string;
+  onClick: () => void;
+};
 
 const travelTips = [
   {
@@ -78,6 +106,8 @@ const Landing = () => {
   const { data: savedProgress } = usePlannerProgress();
   const hasSavedPlan = !!savedProgress;
   const { data: plans = [] } = usePlans();
+  const [planCarouselApi, setPlanCarouselApi] = useState<CarouselApi>();
+  const [activeAdvantageIndex, setActiveAdvantageIndex] = useState(0);
 
   useEffect(() => {
     const onScroll = () => setShowScrollTop(window.scrollY > 600);
@@ -92,6 +122,92 @@ const Landing = () => {
     }
     navigate(cityId ? `/planejar?city=${cityId}` : "/planejar");
   };
+
+  const cheapestPaidPriceCents = useMemo(() => {
+    const paid = plans.filter((p) => p.priceCents > 0).map((p) => p.priceCents);
+    return paid.length ? Math.min(...paid) : null;
+  }, [plans]);
+
+  // Um "banner" de vantagens por plano — preço por roteiro é calculado a
+  // partir do dado real do plano (nunca hardcoded), pra continuar correto se
+  // o preço ou a cota mudarem.
+  const planAdvantages = useMemo<PlanAdvantage[]>(() => {
+    return plans.map((plan): PlanAdvantage => {
+      const isFree = plan.priceCents === 0;
+      const costPerItinerary = isFree ? 0 : Math.round(plan.priceCents / plan.itineraryLimitPerMonth);
+
+      if (plan.id === "explorador") {
+        return {
+          id: plan.id,
+          eyebrow: "Pra quem não para de viajar",
+          eyebrowClass: "text-pe-gold",
+          headline: `${plan.itineraryLimitPerMonth} roteiros por menos de ${formatPriceCents(costPerItinerary)} cada`,
+          description: `${formatPriceCents(plan.priceCents)}/mês pra planejar quantas viagens quiser — sozinho, em família ou em grupo, sem esbarrar em limite.`,
+          priceLabel: formatPriceCents(plan.priceCents),
+          subPrice: "por mês",
+          cta: `Assinar ${plan.name}`,
+          ctaClass: "bg-pe-gold hover:bg-pe-gold/90 text-pe-navy",
+          icon: Rocket,
+          iconBg: "bg-pe-gold",
+          iconColor: "text-pe-navy",
+          cardClass: "border-pe-gold/40 bg-section-gold",
+          onClick: () => navigate("/planos"),
+        };
+      }
+
+      if (plan.id === "mochileiro") {
+        return {
+          id: plan.id,
+          eyebrow: "Ideal pra começar a viajar de verdade",
+          eyebrowClass: "text-pe-red",
+          headline: `Sua próxima viagem por ${formatPriceCents(costPerItinerary)} o roteiro`,
+          description: `${formatPriceCents(plan.priceCents)}/mês por ${plan.itineraryLimitPerMonth} roteiros com IA — monte, compare e ajuste até fechar o plano perfeito da sua viagem.`,
+          priceLabel: formatPriceCents(plan.priceCents),
+          subPrice: "por mês",
+          cta: `Assinar ${plan.name}`,
+          ctaClass: "bg-pe-red hover:bg-pe-red/90 text-white",
+          icon: Backpack,
+          iconBg: "bg-pe-red",
+          iconColor: "text-white",
+          cardClass: "border-pe-red/30 bg-section-red",
+          onClick: () => navigate("/planos"),
+        };
+      }
+
+      return {
+        id: plan.id,
+        eyebrow: "Comece sem gastar nada",
+        eyebrowClass: "text-primary",
+        headline: "Sua primeira viagem, de graça",
+        description: `${plan.itineraryLimitPerMonth} roteiro personalizado grátis por mês, pra conhecer o TripSmart antes de assinar qualquer coisa.`,
+        priceLabel: "Grátis",
+        cta: "Começar grátis",
+        ctaClass: "bg-pe-blue hover:bg-pe-blue/90 text-white",
+        icon: Compass,
+        iconBg: "bg-pe-blue",
+        iconColor: "text-white",
+        cardClass: "border-pe-blue/30 bg-section-blue",
+        onClick: () => goToPlanner(),
+      };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plans, navigate, user]);
+
+  useEffect(() => {
+    if (!planCarouselApi) return;
+    const onSelect = () => setActiveAdvantageIndex(planCarouselApi.selectedScrollSnap());
+    onSelect();
+    planCarouselApi.on("select", onSelect);
+    return () => {
+      planCarouselApi.off("select", onSelect);
+    };
+  }, [planCarouselApi]);
+
+  useEffect(() => {
+    if (!planCarouselApi || planAdvantages.length < 2) return;
+    const id = setInterval(() => planCarouselApi.scrollNext(), 6000);
+    return () => clearInterval(id);
+  }, [planCarouselApi, planAdvantages.length]);
 
   const allSpots = useMemo(() => {
     const spots: { spot: (typeof spotsByCity)["recife"][0]; cityId: string; cityName: string }[] = [];
@@ -491,15 +607,22 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Planos — visíveis direto na home, não só na página /planos */}
-      <section id="planos" className="py-20 px-6 bg-background">
-        <div className="max-w-7xl mx-auto">
+      {/* Planos — seção com bastante destaque, visível direto na home */}
+      <section id="planos" className="py-20 px-6 bg-pe-navy relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-pe-blue/15 via-transparent to-transparent pointer-events-none" />
+        <div className="max-w-7xl mx-auto relative">
           <div className="text-center mb-14">
-            <h2 className="text-3xl md:text-4xl font-black tracking-display text-foreground">
-              Um plano pra cada jeito de viajar
+            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-pe-gold text-pe-navy text-xs font-black uppercase tracking-[0.15em]">
+              <Sparkles size={13} /> Planos TripSmart
+            </span>
+            <h2 className="text-3xl md:text-5xl font-black tracking-display text-white leading-tight mt-5">
+              Quanto mais plano, <span className="text-pe-gold">mais viagem</span>
             </h2>
-            <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
-              Quanto mais roteiros personalizados por mês, mais viagens você planeja com a gente.
+            <p className="text-white/60 mt-4 max-w-xl mx-auto text-base md:text-lg">
+              Escolha quantos roteiros personalizados com IA você quer criar por mês.
+              {cheapestPaidPriceCents != null && (
+                <> Planos pagos a partir de <strong className="text-pe-gold">{formatPriceCents(cheapestPaidPriceCents)}/mês</strong>.</>
+              )}
             </p>
           </div>
 
@@ -514,7 +637,7 @@ const Landing = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.1 }}
                   className={`p-6 rounded-2xl border bg-card space-y-4 ${
-                    isExplorador ? "border-pe-gold border-2" : "border-border"
+                    isExplorador ? "border-pe-gold border-2 md:scale-[1.06] md:shadow-2xl relative z-10" : "border-border"
                   }`}
                   style={{ boxShadow: "var(--card-shadow)" }}
                 >
@@ -539,16 +662,85 @@ const Landing = () => {
             })}
           </div>
 
-          <div className="text-center mt-10">
+          <div className="text-center mt-12">
             <Button
               onClick={() => navigate("/planos")}
               className="bg-pe-gold hover:bg-pe-gold/90 text-pe-navy border-0 rounded-full px-8 h-12 text-base font-bold gap-2"
             >
-              Ver todos os planos <ArrowRight size={18} />
+              Ver comparativo completo <ArrowRight size={18} />
             </Button>
           </div>
         </div>
       </section>
+
+      {/* Vantagens de cada plano — banner em carrossel, linguagem de venda */}
+      {planAdvantages.length > 0 && (
+        <section className="py-20 px-6 bg-background">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl md:text-4xl font-black tracking-display text-foreground">
+                O que cada plano libera pra você
+              </h2>
+              <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
+                Cada plano resolve um jeito diferente de viajar — passe pelos três e veja qual é o seu.
+              </p>
+            </div>
+
+            <Carousel setApi={setPlanCarouselApi} opts={{ loop: true }} className="max-w-3xl mx-auto">
+              <CarouselContent>
+                {planAdvantages.map((adv) => (
+                  <CarouselItem key={adv.id}>
+                    <div className={`rounded-2xl border-2 p-6 md:p-10 ${adv.cardClass}`}>
+                      <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-8">
+                        <div className={`w-16 h-16 rounded-2xl ${adv.iconBg} flex items-center justify-center shrink-0`}>
+                          <adv.icon size={30} className={adv.iconColor} />
+                        </div>
+                        <div className="flex-1">
+                          <span className={`text-xs font-black uppercase tracking-[0.15em] ${adv.eyebrowClass}`}>
+                            {adv.eyebrow}
+                          </span>
+                          <h3 className="text-2xl md:text-3xl font-black text-card-foreground mt-1 leading-tight">
+                            {adv.headline}
+                          </h3>
+                          <p className="text-muted-foreground mt-2.5 leading-relaxed">{adv.description}</p>
+                        </div>
+                        <div className="shrink-0 flex flex-row md:flex-col items-center md:items-end justify-between md:justify-start gap-4 md:gap-0 pt-4 md:pt-0 border-t md:border-t-0 border-border/50">
+                          <div className="text-left md:text-right">
+                            <div className="text-3xl font-black text-foreground">{adv.priceLabel}</div>
+                            {adv.subPrice && <div className="text-xs text-muted-foreground mt-0.5">{adv.subPrice}</div>}
+                          </div>
+                          <Button onClick={adv.onClick} className={`md:mt-4 rounded-full font-bold border-0 ${adv.ctaClass}`}>
+                            {adv.cta}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious className="hidden sm:flex" />
+              <CarouselNext className="hidden sm:flex" />
+            </Carousel>
+
+            {planAdvantages.length > 1 && (
+              <div className="flex justify-center gap-1.5 mt-6" role="tablist" aria-label="Vantagens por plano">
+                {planAdvantages.map((adv, i) => (
+                  <button
+                    key={adv.id}
+                    role="tab"
+                    aria-selected={i === activeAdvantageIndex}
+                    aria-label={`Ver vantagens do plano ${adv.id}`}
+                    onClick={() => planCarouselApi?.scrollTo(i)}
+                    className={`h-1.5 rounded-full transition-all ${
+                      i === activeAdvantageIndex ? "w-6 bg-pe-gold" : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Travel Tips — Gold tinted */}
       <section className="py-20 px-6 bg-section-gold border-y border-pe-gold/10">
