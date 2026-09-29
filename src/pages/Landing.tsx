@@ -203,11 +203,15 @@ const Landing = () => {
     };
   }, [planCarouselApi]);
 
+  // setTimeout reiniciado a cada troca de slide (não setInterval fixo) — assim
+  // ele também reinicia quando o usuário navega manualmente (seta/bolinha), e
+  // fica sempre em sincronia com a barra de progresso abaixo do carrossel,
+  // que reinicia pela mesma mudança de activeAdvantageIndex.
   useEffect(() => {
     if (!planCarouselApi || planAdvantages.length < 2) return;
-    const id = setInterval(() => planCarouselApi.scrollNext(), 6000);
-    return () => clearInterval(id);
-  }, [planCarouselApi, planAdvantages.length]);
+    const id = setTimeout(() => planCarouselApi.scrollNext(), 6000);
+    return () => clearTimeout(id);
+  }, [planCarouselApi, planAdvantages.length, activeAdvantageIndex]);
 
   const allSpots = useMemo(() => {
     const spots: { spot: (typeof spotsByCity)["recife"][0]; cityId: string; cityName: string }[] = [];
@@ -690,55 +694,99 @@ const Landing = () => {
 
             <Carousel setApi={setPlanCarouselApi} opts={{ loop: true }} className="max-w-3xl mx-auto">
               <CarouselContent>
-                {planAdvantages.map((adv) => (
-                  <CarouselItem key={adv.id}>
-                    <div className={`rounded-2xl border-2 p-6 md:p-10 ${adv.cardClass}`}>
-                      <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-8">
-                        <div className={`w-16 h-16 rounded-2xl ${adv.iconBg} flex items-center justify-center shrink-0`}>
-                          <adv.icon size={30} className={adv.iconColor} />
-                        </div>
-                        <div className="flex-1">
-                          <span className={`text-xs font-black uppercase tracking-[0.15em] ${adv.eyebrowClass}`}>
-                            {adv.eyebrow}
-                          </span>
-                          <h3 className="text-2xl md:text-3xl font-black text-card-foreground mt-1 leading-tight">
-                            {adv.headline}
-                          </h3>
-                          <p className="text-muted-foreground mt-2.5 leading-relaxed">{adv.description}</p>
-                        </div>
-                        <div className="shrink-0 flex flex-row md:flex-col items-center md:items-end justify-between md:justify-start gap-4 md:gap-0 pt-4 md:pt-0 border-t md:border-t-0 border-border/50">
-                          <div className="text-left md:text-right">
-                            <div className="text-3xl font-black text-foreground">{adv.priceLabel}</div>
-                            {adv.subPrice && <div className="text-xs text-muted-foreground mt-0.5">{adv.subPrice}</div>}
+                {planAdvantages.map((adv, i) => {
+                  const isActive = i === activeAdvantageIndex;
+                  return (
+                    <CarouselItem key={adv.id}>
+                      <motion.div
+                        whileHover={{ y: -6 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                        className={`relative overflow-hidden rounded-2xl border-2 p-6 md:p-10 ${adv.cardClass}`}
+                      >
+                        {/* Brilho diagonal passando pelo card — só o card ativo anima, pra não gastar ciclo à toa nos escondidos */}
+                        {isActive && (
+                          <motion.div
+                            aria-hidden
+                            className="pointer-events-none absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/40 to-transparent -skew-x-12"
+                            initial={{ x: "-120%" }}
+                            animate={{ x: "320%" }}
+                            transition={{ duration: 2.2, repeat: Infinity, repeatDelay: 2.8, ease: "easeInOut" }}
+                          />
+                        )}
+                        <div className="relative flex flex-col md:flex-row md:items-center gap-6 md:gap-8">
+                          <div className="relative shrink-0 w-16 h-16">
+                            <motion.div
+                              aria-hidden
+                              className={`absolute -inset-2 rounded-full ${adv.iconBg} opacity-40 blur-lg`}
+                              animate={{ scale: [1, 1.25, 1], opacity: [0.3, 0.55, 0.3] }}
+                              transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+                            />
+                            <motion.div
+                              animate={{ y: [0, -7, 0] }}
+                              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                              className={`relative w-16 h-16 rounded-2xl ${adv.iconBg} flex items-center justify-center shadow-lg`}
+                            >
+                              <adv.icon size={30} className={adv.iconColor} />
+                            </motion.div>
                           </div>
-                          <Button onClick={adv.onClick} className={`md:mt-4 rounded-full font-bold border-0 ${adv.ctaClass}`}>
-                            {adv.cta}
-                          </Button>
+                          <motion.div
+                            className="flex-1"
+                            animate={{ opacity: isActive ? 1 : 0.6 }}
+                            transition={{ duration: 0.4 }}
+                          >
+                            <span className={`text-xs font-black uppercase tracking-[0.15em] ${adv.eyebrowClass}`}>
+                              {adv.eyebrow}
+                            </span>
+                            <h3 className="text-2xl md:text-3xl font-black text-card-foreground mt-1 leading-tight">
+                              {adv.headline}
+                            </h3>
+                            <p className="text-muted-foreground mt-2.5 leading-relaxed">{adv.description}</p>
+                          </motion.div>
+                          <div className="shrink-0 flex flex-row md:flex-col items-center md:items-end justify-between md:justify-start gap-4 md:gap-0 pt-4 md:pt-0 border-t md:border-t-0 border-border/50">
+                            <div className="text-left md:text-right">
+                              <div className="text-3xl font-black text-foreground">{adv.priceLabel}</div>
+                              {adv.subPrice && <div className="text-xs text-muted-foreground mt-0.5">{adv.subPrice}</div>}
+                            </div>
+                            <Button onClick={adv.onClick} className={`md:mt-4 rounded-full font-bold border-0 ${adv.ctaClass}`}>
+                              {adv.cta}
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  </CarouselItem>
-                ))}
+                      </motion.div>
+                    </CarouselItem>
+                  );
+                })}
               </CarouselContent>
               <CarouselPrevious className="hidden sm:flex" />
               <CarouselNext className="hidden sm:flex" />
             </Carousel>
 
             {planAdvantages.length > 1 && (
-              <div className="flex justify-center gap-1.5 mt-6" role="tablist" aria-label="Vantagens por plano">
-                {planAdvantages.map((adv, i) => (
-                  <button
-                    key={adv.id}
-                    role="tab"
-                    aria-selected={i === activeAdvantageIndex}
-                    aria-label={`Ver vantagens do plano ${adv.id}`}
-                    onClick={() => planCarouselApi?.scrollTo(i)}
-                    className={`h-1.5 rounded-full transition-all ${
-                      i === activeAdvantageIndex ? "w-6 bg-pe-gold" : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
-                    }`}
+              <>
+                <div className="max-w-3xl mx-auto mt-5 h-1 rounded-full bg-muted overflow-hidden">
+                  <motion.div
+                    key={activeAdvantageIndex}
+                    className="h-full rounded-full bg-pe-gold"
+                    initial={{ width: "0%" }}
+                    animate={{ width: "100%" }}
+                    transition={{ duration: 6, ease: "linear" }}
                   />
-                ))}
-              </div>
+                </div>
+                <div className="flex justify-center gap-1.5 mt-4" role="tablist" aria-label="Vantagens por plano">
+                  {planAdvantages.map((adv, i) => (
+                    <button
+                      key={adv.id}
+                      role="tab"
+                      aria-selected={i === activeAdvantageIndex}
+                      aria-label={`Ver vantagens do plano ${adv.id}`}
+                      onClick={() => planCarouselApi?.scrollTo(i)}
+                      className={`h-1.5 rounded-full transition-all ${
+                        i === activeAdvantageIndex ? "w-6 bg-pe-gold" : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </section>
