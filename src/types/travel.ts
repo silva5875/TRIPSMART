@@ -26,6 +26,7 @@ export interface AccommodationDetail {
   lng: number;
   type: string;
   bookingUrl?: string;
+  imageUrl?: string;
 }
 
 export interface RestaurantDetail {

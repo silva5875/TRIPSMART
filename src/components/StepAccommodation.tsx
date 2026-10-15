@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Star, MapPin, Navigation, HelpCircle, ExternalLink, AlertTriangle } from "lucide-react";
+import { Star, MapPin, Navigation, HelpCircle, ExternalLink, AlertTriangle, Hotel } from "lucide-react";
 import StarRating from "@/components/StarRating";
 import { useAccommodations, type CatalogContext } from "@/data/catalog";
 import { useAccommodationRatingAverages } from "@/data/reviews";
@@ -144,52 +144,69 @@ const StepAccommodation = ({
                 }`}
                 style={{ boxShadow: "var(--card-shadow)" }}
               >
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
-                  <div className="flex-1">
-                    <span className="text-xs font-bold uppercase tracking-widest text-primary">{acc.type}</span>
-                    <h3 className="text-base md:text-lg font-bold text-card-foreground mt-1">{acc.name}</h3>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                      <MapPin size={12} /> {acc.address}
-                    </p>
+                <div className="flex gap-4">
+                  {acc.imageUrl ? (
+                    <img
+                      src={acc.imageUrl}
+                      alt={acc.name}
+                      loading="lazy"
+                      className="w-24 h-24 rounded-xl object-cover shrink-0"
+                    />
+                  ) : (
+                    <div className="w-24 h-24 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <Hotel size={28} className="text-primary" strokeWidth={1.5} />
+                    </div>
+                  )}
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
+                      <div className="flex-1">
+                        <span className="text-xs font-bold uppercase tracking-widest text-primary">{acc.type}</span>
+                        <h3 className="text-base md:text-lg font-bold text-card-foreground mt-1">{acc.name}</h3>
+                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                          <MapPin size={12} /> {acc.address}
+                        </p>
+                      </div>
+                      <div className="sm:text-right flex-shrink-0 flex sm:flex-col items-center sm:items-end gap-2 sm:gap-0">
+                        <span className="text-lg md:text-xl font-extrabold text-foreground">R$ {acc.pricePerNight}</span>
+                        <span className="text-xs text-muted-foreground">/noite</span>
+                        <span className="text-xs font-semibold text-primary">
+                          Total: R$ {totalCost.toLocaleString("pt-BR")}
+                        </span>
+                      </div>
+                    </div>
+                    {isSafeExternalUrl(acc.bookingUrl) && (
+                      <a href={acc.bookingUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 mt-2 text-xs font-bold px-3 py-1.5 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition-opacity">
+                        <ExternalLink size={12} /> Reservar
+                      </a>
+                    )}
+                    <div className="flex flex-wrap items-center gap-3 mt-3">
+                      {acc.rating && (
+                        <span className="flex items-center gap-1 text-sm">
+                          <Star size={14} className="text-primary fill-primary" />
+                          <span className="font-bold text-foreground">{acc.rating}</span>
+                        </span>
+                      )}
+                      {distKm !== null && (
+                        <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <Navigation size={14} />
+                          <span className="font-bold">{distKm.toFixed(1)}km</span>
+                          <span className="text-xs">da atividade principal</span>
+                        </span>
+                      )}
+                      {!withinBudget && (
+                        <span className="flex items-center gap-1 text-xs font-bold text-destructive">
+                          <AlertTriangle size={12} /> Acima do orçamento
+                        </span>
+                      )}
+                      {userRating && (
+                        <span className="flex items-center gap-1 text-sm">
+                          <StarRating value={userRating.avg} readOnly size={12} showValue />
+                          <span className="text-xs text-muted-foreground">({userRating.count})</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="sm:text-right flex-shrink-0 flex sm:flex-col items-center sm:items-end gap-2 sm:gap-0">
-                    <span className="text-lg md:text-xl font-extrabold text-foreground">R$ {acc.pricePerNight}</span>
-                    <span className="text-xs text-muted-foreground">/noite</span>
-                    <span className="text-xs font-semibold text-primary">
-                      Total: R$ {totalCost.toLocaleString("pt-BR")}
-                    </span>
-                  </div>
-                </div>
-                {isSafeExternalUrl(acc.bookingUrl) && (
-                  <a href={acc.bookingUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 mt-2 text-xs font-bold px-3 py-1.5 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition-opacity">
-                    <ExternalLink size={12} /> Reservar
-                  </a>
-                )}
-                <div className="flex flex-wrap items-center gap-3 mt-3">
-                  {acc.rating && (
-                    <span className="flex items-center gap-1 text-sm">
-                      <Star size={14} className="text-primary fill-primary" />
-                      <span className="font-bold text-foreground">{acc.rating}</span>
-                    </span>
-                  )}
-                  {distKm !== null && (
-                    <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <Navigation size={14} />
-                      <span className="font-bold">{distKm.toFixed(1)}km</span>
-                      <span className="text-xs">da atividade principal</span>
-                    </span>
-                  )}
-                  {!withinBudget && (
-                    <span className="flex items-center gap-1 text-xs font-bold text-destructive">
-                      <AlertTriangle size={12} /> Acima do orçamento
-                    </span>
-                  )}
-                  {userRating && (
-                    <span className="flex items-center gap-1 text-sm">
-                      <StarRating value={userRating.avg} readOnly size={12} showValue />
-                      <span className="text-xs text-muted-foreground">({userRating.count})</span>
-                    </span>
-                  )}
                 </div>
               </motion.button>
             );
