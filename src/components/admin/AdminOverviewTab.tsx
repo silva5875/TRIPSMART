@@ -17,6 +17,8 @@ import type { PlannerStepName } from '@/data/plannerProgress';
 import { budgetLabel, formatProtocol } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 import AdminDrillDownSheet, { type DrillDownRow } from './AdminDrillDownSheet';
+import AdminTripDetailSheet from './AdminTripDetailSheet';
+import type { AdminTravelHistoryDTO } from '@/data/admin';
 
 type DrillDown = 'users-new-7d' | 'users-new-30d' | 'trips' | 'shared' | 'comments' | 'likes' | 'reviews' | null;
 
@@ -82,6 +84,7 @@ const AdminOverviewTab = ({ onGoToUsers }: AdminOverviewTabProps) => {
   const { data: activitySeries = [], isLoading: loadingActivitySeries } = useAdminActivitySeries(30);
 
   const [drillDown, setDrillDown] = useState<DrillDown>(null);
+  const [tripDetail, setTripDetail] = useState<AdminTravelHistoryDTO | null>(null);
   // Dia clicado numa barra dos gráficos abaixo — 'YYYY-MM-DD' ou null.
   const [activityDay, setActivityDay] = useState<string | null>(null);
   const [trafficDay, setTrafficDay] = useState<string | null>(null);
@@ -364,11 +367,13 @@ const AdminOverviewTab = ({ onGoToUsers }: AdminOverviewTabProps) => {
         open={drillDown === 'trips'}
         onOpenChange={(open) => !open && setDrillDown(null)}
         title="Viagens salvas"
-        description="Roteiros salvos por qualquer usuário, mais recentes primeiro."
+        description="Roteiros salvos por qualquer usuário, mais recentes primeiro. Clique numa viagem para ver o roteiro completo."
         loading={loadingTrips}
         empty="Nenhuma viagem salva ainda."
         rows={tripsRows}
+        onRowClick={(id) => setTripDetail(trips.find((t) => t.id === id) ?? null)}
       />
+      <AdminTripDetailSheet trip={tripDetail} onOpenChange={(open) => !open && setTripDetail(null)} />
       <AdminDrillDownSheet
         open={drillDown === 'shared'}
         onOpenChange={(open) => !open && setDrillDown(null)}

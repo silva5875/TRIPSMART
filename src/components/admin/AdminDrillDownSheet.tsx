@@ -1,3 +1,4 @@
+import { ChevronRight } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 export interface DrillDownRow {
@@ -15,6 +16,10 @@ interface AdminDrillDownSheetProps {
   loading: boolean;
   empty: string;
   rows: DrillDownRow[];
+  /** Quando passado, cada linha vira um botão clicável (ex: abrir o detalhe
+   *  completo do item) em vez de só exibição. Opcional — a maioria dos
+   *  cartões de "Atividade gerada no site" continua só informativa. */
+  onRowClick?: (id: string) => void;
 }
 
 /**
@@ -22,7 +27,7 @@ interface AdminDrillDownSheetProps {
  * site" — cada um só muda o que busca, não como mostra a lista.
  */
 const AdminDrillDownSheet = ({
-  open, onOpenChange, title, description, loading, empty, rows,
+  open, onOpenChange, title, description, loading, empty, rows, onRowClick,
 }: AdminDrillDownSheetProps) => (
   <Sheet open={open} onOpenChange={onOpenChange}>
     <SheetContent className="w-full sm:max-w-lg overflow-y-auto bg-background border-l border-border">
@@ -36,13 +41,28 @@ const AdminDrillDownSheet = ({
         ) : rows.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-12">{empty}</p>
         ) : (
-          rows.map((r) => (
-            <div key={r.id} className="p-3 rounded-xl border border-border bg-card">
-              <p className="text-sm font-bold text-foreground break-words">{r.title}</p>
-              {r.subtitle && <p className="text-xs text-muted-foreground break-words">{r.subtitle}</p>}
-              {r.meta && <p className="text-[11px] text-muted-foreground mt-1">{r.meta}</p>}
-            </div>
-          ))
+          rows.map((r) =>
+            onRowClick ? (
+              <button
+                key={r.id}
+                onClick={() => onRowClick(r.id)}
+                className="w-full flex items-center justify-between gap-2 p-3 rounded-xl border border-border bg-card text-left hover:border-primary/40 transition-colors"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-foreground break-words">{r.title}</p>
+                  {r.subtitle && <p className="text-xs text-muted-foreground break-words">{r.subtitle}</p>}
+                  {r.meta && <p className="text-[11px] text-muted-foreground mt-1">{r.meta}</p>}
+                </div>
+                <ChevronRight size={18} className="text-muted-foreground shrink-0" />
+              </button>
+            ) : (
+              <div key={r.id} className="p-3 rounded-xl border border-border bg-card">
+                <p className="text-sm font-bold text-foreground break-words">{r.title}</p>
+                {r.subtitle && <p className="text-xs text-muted-foreground break-words">{r.subtitle}</p>}
+                {r.meta && <p className="text-[11px] text-muted-foreground mt-1">{r.meta}</p>}
+              </div>
+            )
+          )
         )}
       </div>
     </SheetContent>

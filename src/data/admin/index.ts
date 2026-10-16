@@ -9,6 +9,7 @@ import { throwFunctionError } from '@/data/functionsError';
 import { attachProfiles } from '@/data/itineraries';
 import type { PlannerStepName } from '@/data/plannerProgress';
 import { queryKeys } from '@/data/queryKeys';
+import type { TouristSpot } from '@/types/travel';
 
 /**
  * Tamanho das listagens administrativas por trás dos cartões de "Atividade
@@ -372,13 +373,26 @@ export interface AdminTravelHistoryDTO {
   state: string;
   budget: number;
   people: number;
+  groupType: string;
   days: number | null;
+  month: number | null;
+  accommodation: string | null;
+  localTransport: string | null;
+  transportToDestination: string | null;
+  touristSpots: TouristSpot[];
+  restaurants: unknown[];
+  entertainment: string[];
+  food: string[];
   protocolNumber: number;
   createdAt: string;
 }
 
-/** Viagens salvas por qualquer usuário — mesma tabela de `useTravelHistory`,
- * mas sem o filtro por `user_id` (a política de admin já permite ler todas). */
+/**
+ * Viagens salvas por qualquer usuário — mesma tabela de `useTravelHistory`,
+ * mas sem o filtro por `user_id` (a política de admin já permite ler todas).
+ * Traz o roteiro inteiro (não só o resumo da listagem) para o drill-down
+ * "Viagens salvas" poder abrir o detalhe completo ao clicar numa linha.
+ */
 export function useAdminTravelHistory(options?: { enabled?: boolean; limit?: number }) {
   const limit = options?.limit ?? ADMIN_DRILLDOWN_LIMIT;
   return useQuery({
@@ -387,7 +401,11 @@ export function useAdminTravelHistory(options?: { enabled?: boolean; limit?: num
     queryFn: async (): Promise<AdminTravelHistoryDTO[]> => {
       const { data, error } = await supabase
         .from('travel_history')
-        .select('id, user_id, state, budget, people, days, protocol_number, created_at')
+        .select(
+          'id, user_id, state, budget, people, group_type, days, month, accommodation, ' +
+            'local_transport, transport_to_destination, tourist_spots, restaurants, ' +
+            'entertainment, food, protocol_number, created_at'
+        )
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .range(0, limit - 1);
@@ -395,7 +413,11 @@ export function useAdminTravelHistory(options?: { enabled?: boolean; limit?: num
 
       const rows = await attachProfiles((data ?? []) as unknown as {
         id: string; user_id: string; state: string; budget: number; people: number;
-        days: number | null; protocol_number: number; created_at: string;
+        group_type: string; days: number | null; month: number | null;
+        accommodation: string | null; local_transport: string | null;
+        transport_to_destination: string | null; tourist_spots: TouristSpot[] | null;
+        restaurants: unknown[] | null; entertainment: string[] | null; food: string[] | null;
+        protocol_number: number; created_at: string;
       }[]);
       return rows.map((r) => ({
         id: r.id,
@@ -403,7 +425,16 @@ export function useAdminTravelHistory(options?: { enabled?: boolean; limit?: num
         state: r.state,
         budget: r.budget,
         people: r.people,
+        groupType: r.group_type,
         days: r.days,
+        month: r.month,
+        accommodation: r.accommodation,
+        localTransport: r.local_transport,
+        transportToDestination: r.transport_to_destination,
+        touristSpots: r.tourist_spots ?? [],
+        restaurants: r.restaurants ?? [],
+        entertainment: r.entertainment ?? [],
+        food: r.food ?? [],
         protocolNumber: r.protocol_number,
         createdAt: r.created_at,
       }));
