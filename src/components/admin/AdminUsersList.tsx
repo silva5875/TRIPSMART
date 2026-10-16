@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Ban, Search, ShieldCheck, ShieldOff, UserCheck } from 'lucide-react';
+import { Ban, Code2, Search, ShieldCheck, ShieldOff, UserCheck } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -21,6 +21,7 @@ import { getErrorMessage } from '@/lib/errors';
 
 type PendingAction =
   | { kind: 'revoke-admin'; user: AdminUserDTO }
+  | { kind: 'revoke-dev'; user: AdminUserDTO }
   | { kind: 'ban'; user: AdminUserDTO }
   | { kind: 'unban'; user: AdminUserDTO };
 
@@ -61,6 +62,24 @@ const AdminUsersList = () => {
     setRole.mutate(
       { userId: u.id, role: 'admin', grant: false },
       { onSuccess: () => toast({ title: 'Admin removido', description: u.displayName ?? u.email ?? '' }), onError }
+    );
+    setPending(null);
+  };
+
+  // 'dev' dá o mesmo acesso de 'admin' em todo o sistema (is_admin() aceita
+  // os dois) — por isso concede/remove pelo mesmo RPC e pede a mesma
+  // confirmação ao remover.
+  const grantDev = (u: AdminUserDTO) => {
+    setRole.mutate(
+      { userId: u.id, role: 'dev', grant: true },
+      { onSuccess: () => toast({ title: 'Dev concedido', description: u.displayName ?? u.email ?? '' }), onError }
+    );
+  };
+
+  const confirmRevokeDev = (u: AdminUserDTO) => {
+    setRole.mutate(
+      { userId: u.id, role: 'dev', grant: false },
+      { onSuccess: () => toast({ title: 'Dev removido', description: u.displayName ?? u.email ?? '' }), onError }
     );
     setPending(null);
   };
@@ -179,7 +198,7 @@ const AdminUsersList = () => {
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {isDev && (
-                          <Badge className="bg-pe-gold text-pe-navy border-0">Dev responsável</Badge>
+                          <Badge className="bg-pe-gold text-pe-navy border-0">Dev</Badge>
                         )}
                         {isAdminUser && <Badge className="bg-pe-navy text-white border-0">Admin</Badge>}
                         {isBanned && <Badge variant="destructive">Inativo</Badge>}
@@ -204,6 +223,25 @@ const AdminUsersList = () => {
                             className="gap-1 text-xs"
                           >
                             <ShieldCheck size={13} /> Tornar admin
+                          </Button>
+                        )}
+
+                        {isDev ? (
+                          <Button
+                            size="sm" variant="ghost" disabled={isSelf || setRole.isPending}
+                            title={isSelf ? 'Você não pode remover sua própria tag de dev' : 'Remover dev'}
+                            onClick={() => setPending({ kind: 'revoke-dev', user: u })}
+                            className="gap-1 text-xs"
+                          >
+                            <Code2 size={13} /> Remover dev
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm" variant="ghost" disabled={setRole.isPending}
+                            onClick={() => grantDev(u)}
+                            className="gap-1 text-xs"
+                          >
+                            <Code2 size={13} /> Tornar dev
                           </Button>
                         )}
 
@@ -249,6 +287,21 @@ const AdminUsersList = () => {
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                 <AlertDialogAction onClick={() => confirmRevoke(pending.user)}>Remover admin</AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
+          {pending?.kind === 'revoke-dev' && (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remover a tag de dev?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {pending.user.displayName || pending.user.email} deixará de ter acesso total ao
+                  sistema (mesmo acesso de admin). Isso não afeta a conta do usuário nem os dados dele.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => confirmRevokeDev(pending.user)}>Remover dev</AlertDialogAction>
               </AlertDialogFooter>
             </>
           )}

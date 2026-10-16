@@ -66,8 +66,8 @@ type ItineraryCommentsExtended = {
 
 /**
  * Migration 20260916100000, com 'dev' adicionado em 20260916140000.
- * 'dev' não concede permissão nenhuma — é só a etiqueta "Dev responsável" na
- * aba Usuários. Quem decide acesso ao painel é 'admin', via is_admin().
+ * Desde 20261016100000, 'dev' concede o mesmo acesso de 'admin' em todo o
+ * sistema — is_admin() aceita os dois papéis.
  */
 export type AppRole = 'admin' | 'moderator' | 'user' | 'dev';
 
