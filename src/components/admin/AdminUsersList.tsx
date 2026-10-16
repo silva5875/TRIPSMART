@@ -9,9 +9,6 @@ import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdminUsers, useSetUserBanned, useSetUserPlan, useSetUserRole, type AdminUserDTO } from '@/data/admin';
@@ -124,152 +121,134 @@ const AdminUsersList = () => {
       ) : filtered.length === 0 ? (
         <p className="text-muted-foreground text-center py-12">Nenhum usuário encontrado.</p>
       ) : (
-        <div className="rounded-2xl border border-border bg-card overflow-x-auto" style={{ boxShadow: 'var(--card-shadow)' }}>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">ID</TableHead>
-                <TableHead>Usuário</TableHead>
-                <TableHead>Nascimento</TableHead>
-                <TableHead>Cadastro</TableHead>
-                <TableHead>Último acesso</TableHead>
-                <TableHead>Viagens</TableHead>
-                <TableHead>Compartilhados</TableHead>
-                <TableHead>Plano</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((u) => {
-                const isAdminUser = u.roles.includes('admin');
-                const isDev = u.roles.includes('dev');
-                const isBanned = u.isBanned;
-                const isSelf = u.id === me?.id;
+        <div className="space-y-3">
+          {filtered.map((u) => {
+            const isAdminUser = u.roles.includes('admin');
+            const isDev = u.roles.includes('dev');
+            const isBanned = u.isBanned;
+            const isSelf = u.id === me?.id;
 
-                return (
-                  <TableRow key={u.id}>
-                    <TableCell className="text-sm font-semibold text-muted-foreground tabular-nums">
-                      {u.userNumber != null ? `#${u.userNumber}` : '—'}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2.5 min-w-[180px]">
-                        <div className="w-8 h-8 rounded-full bg-pe-gold flex items-center justify-center text-xs font-bold text-pe-navy shrink-0">
-                          {initials(u.displayName || u.email)}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold text-foreground truncate">
-                            {u.displayName || 'Sem nome'}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">{u.email}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <p className="text-sm text-foreground">{formatBirthDate(u.birthDate)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatExactAge(u.ageYears, u.ageMonths, u.ageDays)}
-                      </p>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                      {formatDate(u.createdAt)}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                      {formatDate(u.lastSignInAt)}
-                    </TableCell>
-                    <TableCell className="text-sm font-semibold text-foreground tabular-nums">
-                      {u.tripsCount}
-                    </TableCell>
-                    <TableCell className="text-sm font-semibold text-foreground tabular-nums">
-                      {u.sharedCount}
-                    </TableCell>
-                    <TableCell>
-                      <Select value={u.planId} onValueChange={(planId) => changePlan(u, planId)} disabled={setPlan.isPending}>
-                        <SelectTrigger className="h-8 w-[130px] text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {plans.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {isDev && (
-                          <Badge className="bg-pe-gold text-pe-navy border-0">Dev</Badge>
-                        )}
-                        {isAdminUser && <Badge className="bg-pe-navy text-white border-0">Admin</Badge>}
-                        {isBanned && <Badge variant="destructive">Inativo</Badge>}
-                        {!isAdminUser && !isBanned && <Badge variant="outline">Ativo</Badge>}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {isAdminUser ? (
-                          <Button
-                            size="sm" variant="ghost" disabled={isSelf || setRole.isPending}
-                            title={isSelf ? 'Você não pode remover seu próprio acesso de admin' : 'Remover admin'}
-                            onClick={() => setPending({ kind: 'revoke-admin', user: u })}
-                            className="gap-1 text-xs"
-                          >
-                            <ShieldOff size={13} /> Remover admin
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm" variant="ghost" disabled={setRole.isPending}
-                            onClick={() => grantAdmin(u)}
-                            className="gap-1 text-xs"
-                          >
-                            <ShieldCheck size={13} /> Tornar admin
-                          </Button>
-                        )}
+            return (
+              <div key={u.id} className="rounded-2xl border border-border bg-card p-4 space-y-3" style={{ boxShadow: 'var(--card-shadow)' }}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-full bg-pe-gold flex items-center justify-center text-xs font-bold text-pe-navy shrink-0">
+                      {initials(u.displayName || u.email)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-foreground truncate">{u.displayName || 'Sem nome'}</p>
+                      <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-semibold text-muted-foreground tabular-nums shrink-0">
+                    {u.userNumber != null ? `#${u.userNumber}` : '—'}
+                  </span>
+                </div>
 
-                        {isDev ? (
-                          <Button
-                            size="sm" variant="ghost" disabled={isSelf || setRole.isPending}
-                            title={isSelf ? 'Você não pode remover sua própria tag de dev' : 'Remover dev'}
-                            onClick={() => setPending({ kind: 'revoke-dev', user: u })}
-                            className="gap-1 text-xs"
-                          >
-                            <Code2 size={13} /> Remover dev
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm" variant="ghost" disabled={setRole.isPending}
-                            onClick={() => grantDev(u)}
-                            className="gap-1 text-xs"
-                          >
-                            <Code2 size={13} /> Tornar dev
-                          </Button>
-                        )}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 py-3 border-y border-border/60">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Nascimento</p>
+                    <p className="text-xs text-foreground">{formatBirthDate(u.birthDate)}</p>
+                    <p className="text-[10px] text-muted-foreground">{formatExactAge(u.ageYears, u.ageMonths, u.ageDays)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Cadastro</p>
+                    <p className="text-xs text-foreground">{formatDate(u.createdAt)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Último acesso</p>
+                    <p className="text-xs text-foreground">{formatDate(u.lastSignInAt)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Viagens</p>
+                    <p className="text-xs font-semibold text-foreground tabular-nums">{u.tripsCount}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Compartilhados</p>
+                    <p className="text-xs font-semibold text-foreground tabular-nums">{u.sharedCount}</p>
+                  </div>
+                </div>
 
-                        {isBanned ? (
-                          <Button
-                            size="sm" variant="ghost" disabled={setBanned.isPending}
-                            onClick={() => setPending({ kind: 'unban', user: u })}
-                            className="gap-1 text-xs text-primary"
-                          >
-                            <UserCheck size={13} /> Reativar
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm" variant="ghost" disabled={isSelf || setBanned.isPending}
-                            title={isSelf ? 'Você não pode inativar sua própria conta' : 'Inativar usuário'}
-                            onClick={() => setPending({ kind: 'ban', user: u })}
-                            className="gap-1 text-xs text-destructive hover:text-destructive"
-                          >
-                            <Ban size={13} /> Inativar
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <Select value={u.planId} onValueChange={(planId) => changePlan(u, planId)} disabled={setPlan.isPending}>
+                    <SelectTrigger className="h-8 w-[130px] text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {plans.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex flex-wrap gap-1">
+                    {isDev && <Badge className="bg-pe-gold text-pe-navy border-0">Dev</Badge>}
+                    {isAdminUser && <Badge className="bg-pe-navy text-white border-0">Admin</Badge>}
+                    {isBanned && <Badge variant="destructive">Inativo</Badge>}
+                    {!isAdminUser && !isBanned && <Badge variant="outline">Ativo</Badge>}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-border/60">
+                  {isAdminUser ? (
+                    <Button
+                      size="sm" variant="ghost" disabled={isSelf || setRole.isPending}
+                      title={isSelf ? 'Você não pode remover seu próprio acesso de admin' : 'Remover admin'}
+                      onClick={() => setPending({ kind: 'revoke-admin', user: u })}
+                      className="gap-1 text-xs"
+                    >
+                      <ShieldOff size={13} /> Remover admin
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm" variant="ghost" disabled={setRole.isPending}
+                      onClick={() => grantAdmin(u)}
+                      className="gap-1 text-xs"
+                    >
+                      <ShieldCheck size={13} /> Tornar admin
+                    </Button>
+                  )}
+
+                  {isDev ? (
+                    <Button
+                      size="sm" variant="ghost" disabled={isSelf || setRole.isPending}
+                      title={isSelf ? 'Você não pode remover sua própria tag de dev' : 'Remover dev'}
+                      onClick={() => setPending({ kind: 'revoke-dev', user: u })}
+                      className="gap-1 text-xs"
+                    >
+                      <Code2 size={13} /> Remover dev
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm" variant="ghost" disabled={setRole.isPending}
+                      onClick={() => grantDev(u)}
+                      className="gap-1 text-xs"
+                    >
+                      <Code2 size={13} /> Tornar dev
+                    </Button>
+                  )}
+
+                  {isBanned ? (
+                    <Button
+                      size="sm" variant="ghost" disabled={setBanned.isPending}
+                      onClick={() => setPending({ kind: 'unban', user: u })}
+                      className="gap-1 text-xs text-primary"
+                    >
+                      <UserCheck size={13} /> Reativar
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm" variant="ghost" disabled={isSelf || setBanned.isPending}
+                      title={isSelf ? 'Você não pode inativar sua própria conta' : 'Inativar usuário'}
+                      onClick={() => setPending({ kind: 'ban', user: u })}
+                      className="gap-1 text-xs text-destructive hover:text-destructive"
+                    >
+                      <Ban size={13} /> Inativar
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
